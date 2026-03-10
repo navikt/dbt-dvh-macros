@@ -2,6 +2,10 @@
 ## scd
 Implementasjon av DBT materialiseringstype `SCD` som støtter Slowly Changing Dimension Type 0, 1, og 2 inkrementelle SQL transformasjoner/modeller for dbt-oracle adapteret.
 
+Dette løses hovedsaklig ved å sortere rader og så eksekvere MERGE mot en Primary Key kolonne.
+
+Navngivning og metadata kolonner følger typiske DVH bruk.
+
 
 | SCD    | Action          |
 |--------|-----------------|
