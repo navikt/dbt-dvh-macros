@@ -18,10 +18,11 @@ Ytterligere informasjon:
 - [Wikipedia](https://en.wikipedia.org/wiki/Slowly_changing_dimension) for en grei introduksjon.
 - [Data Warehouse Toolkit](https://www.oreilly.com/library/view/the-data-warehouse/9781118530801/) bok av Ralph Kimball
 
-### Minimalt eksempel
+### Eksempel
 ```yaml
 models:
     - name: dim_gronnsaker
+      description: SCD-1 dimensjon for grønnsaker
       config:
         materialization: scd
         scd-type: 1
