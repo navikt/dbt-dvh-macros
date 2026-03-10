@@ -1,2 +1,2 @@
-# dbt_dvh_macros
+# dbt-dvh-macros
 DBT makroer utviklet av DVH til felles bruk.
