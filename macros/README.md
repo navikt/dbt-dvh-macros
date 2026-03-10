@@ -4,7 +4,7 @@ Implementasjon av DBT materialiseringstype `SCD` som støtter Slowly Changing Di
 
 Dette løses hovedsaklig ved å sortere rader og så eksekvere MERGE mot en Primary Key kolonne.
 
-Navngivning og metadata kolonner følger typiske DVH bruk.
+Navngivning og metadata kolonner følger typisk DVH bruk.
 
 
 | SCD    | Action          |
