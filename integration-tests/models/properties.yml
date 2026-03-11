@@ -28,6 +28,7 @@ seeds:
       column_types:
         alt_pk: number(38, 0)
         kode: varchar2(1 char)
+        kode2: varchar2(1 char)
         navn: varchar2(2 char)
         navn2: varchar2(3 char)
         oppdatert: varchar2(8 char)
