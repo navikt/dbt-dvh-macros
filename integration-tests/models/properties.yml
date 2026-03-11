@@ -1,12 +1,12 @@
 models:
-  - name: dim_default
-    description: SCD using config defaults
+  - name: dim_scd_default
+    description: SCD using scd macro defaults
     scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
     filter_mode: "{{ env_var('FILTER_MODE') }}"
     scd_key: kode
 
-  - name: dim_spec
-    description: SCD with all settings specified
+  - name: dim_scd_spec
+    description: SCD with all scd settings specified
     scd_type: "{{ env_var('SCD_TYPE') }}"
     filter_mode: "{{ env_var('FILTER_MODE') }}"
     scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"
@@ -20,4 +20,15 @@ models:
     updated_at: oppdatert
     loaded_at: lastet
     schema_changes_enabled: "{{ env_var('SCHEMA_CHANGES', '').split(',') | reject('equalto', '') | list }}"
-  
+
+seeds:
+  - name: csv_dim_scd_init
+    config:
+      quote_columns: false
+      column_types:
+        alt_pk: number(38, 0)
+        kode: varchar2(1 char)
+        navn: varchar2(2 char)
+        navn2: varchar2(3 char)
+        oppdatert: varchar2(8 char)
+        opprettet: varchar2(8 char)
