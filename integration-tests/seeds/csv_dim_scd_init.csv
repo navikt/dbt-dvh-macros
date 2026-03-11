@@ -7,3 +7,4 @@ alt_pk,kode,kode2,navn,navn2,oppdatert,opprettet
 11,B,?,b1,bbb,20150101,20150101
 12,B,?,b2,bbb,20150202,59990909
 21,C,#,c1,ccc,20250101,20250101
+22,C,$,c1,ccc,20260101,20250101
