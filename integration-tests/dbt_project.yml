@@ -1,0 +1,18 @@
+name: dbt-dvh-macros-integration-tests
+version: 1.0.0
+config-version: 2
+profile: integration-tests
+
+quoting:
+  database: false
+  identifier: false
+  schema: false
+
+flags:
+  send_anonymous_usage_stats: false
+
+on-run-start:
+  - select 'hook start' from dual
+
+on-run-end:
+  - select 'hook end' from dual

@@ -25,6 +25,7 @@ models:
       description: SCD-1 dimensjon for grønnsaker
       config:
         materialization: scd
-        scd-type: 1
+        scd_type: 1
+        scd_key: gronnsak_kode
         filter_mode: changed_at
 ```
