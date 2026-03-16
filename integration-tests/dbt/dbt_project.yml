@@ -1,7 +1,7 @@
-name: dbt-dvh-macros-integration-tests
+name: dbt_dvh_macros_integration_tests
 version: 1.0.0
 config-version: 2
-profile: integration-tests
+profile: integration_tests
 
 quoting:
   database: false
@@ -10,6 +10,10 @@ quoting:
 
 flags:
   send_anonymous_usage_stats: false
+
+macro-paths:
+  - "macros"
+  - "../../macros"
 
 on-run-start:
   - select 'hook start' from dual

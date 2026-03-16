@@ -1,0 +1,21 @@
+integration_tests:
+  target: testcontainer
+  outputs:
+    testcontainer:
+      type: oracle
+      user: "{{env_var('DBT_ENV_SECRET_USER')}}"
+      pass: "{{env_var('DBT_ENV_SECRET_PASS')}}"
+      protocol: tcp
+      host: "{{ env_var('DBT_HOST') }}"
+      port: "{{ env_var('DBT_PORT') }}"
+      service: "{{env_var('DBT_SERVICE')}}"
+      database: "{{env_var('DBT_DATABASE')}}"
+      schema: "{{env_var('DBT_SCHEMA')}}"
+      session_info:
+        action: "dbt integration test"
+        client_identifier: "testcontainer"
+        client_info: "dbt python thin driver"
+        module: "dbt-dvh-macros-1.0.0"
+      retry_count: 1
+      retry_delay: 5
+      threads: 1

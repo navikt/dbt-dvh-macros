@@ -1,0 +1,6 @@
+.pytest_cache
+__pycache__
+*/dbt/tests
+*/dbt/logs
+adapter default incremental.sql
+*/dbt/dbt_packages
