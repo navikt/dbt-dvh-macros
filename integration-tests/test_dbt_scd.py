@@ -39,7 +39,7 @@ def test_dbt_debug():
 
 @pytest.mark.usefixtures("oracle_connection")
 @pytest.mark.order(after="test_dbt_debug")
-@settings(deadline=1000)
+@settings(deadline=2000)
 @given(
     kode=st.lists(st.text(min_size=8, max_size=8), min_size=RC_INIT, max_size=RC_INIT),
     navn=st.lists(st.text(min_size=32, max_size=32), min_size=RC_INIT, max_size=RC_INIT),

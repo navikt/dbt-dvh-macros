@@ -58,7 +58,7 @@ def oracle_connection():
             "DBT_PORT": str(config.port),
             "DBT_SERVICE": config.service_name,
             "DBT_DATABASE": config.service_name,
-            "DBT_SCHEMA": "dvh_test",
+            "DBT_SCHEMA": config.app_user,
             "ORA_PYTHON_DRIVER_TYPE": "thin",
         }
         for k, v in env_vars.items():

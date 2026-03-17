@@ -1,26 +1,29 @@
 models:
   - name: dim_scd_default
     description: SCD using scd macro defaults
-    scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
-    filter_mode: "{{ env_var('FILTER_MODE') }}"
-    scd_key: kode
+    config:
+      scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
+      filter_mode: "{{ env_var('FILTER_MODE') }}"
+      scd_key: kode
 
   - name: dim_scd_spec
     description: SCD with all scd settings specified
-    scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
-    filter_mode: "{{ env_var('FILTER_MODE') }}"
-    scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"
-    scd_key: kode
-    primary_key: pk_test
-    changed_at: endret
-    created_at: opprettet
-    valid_from: gyldig_fra_og_med
-    valid_to: gyldig_til
-    valid_flag: gyldig_naa
-    updated_at: oppdatert
-    loaded_at: lastet
-    schema_changes_enabled: "{{ env_var('SCHEMA_CHANGES', '').split(',') | reject('equalto', '') | list }}"
+    config:
+      scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
+      filter_mode: "{{ env_var('FILTER_MODE') }}"
+      scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"
+      scd_key: kode
+      primary_key: pk_test
+      changed_at: endret
+      created_at: opprettet
+      valid_from: gyldig_fra_og_med
+      valid_to: gyldig_til
+      valid_flag: gyldig_naa
+      updated_at: oppdatert
+      loaded_at: lastet
+      schema_changes_enabled: "{{ env_var('SCHEMA_CHANGES', '').split(',') | reject('equalto', '') | list }}"
 
 sources:
-  - name: scd_raadata
-    schema: "{{ env_var('DBT_SCHEMA') }}"
+  - name: "{{ env_var('DBT_SCHEMA') }}"
+    tables:
+      - name: scd_raadata
