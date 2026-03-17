@@ -18,6 +18,13 @@ class ConnectionConfig(NamedTuple):
     app_user:str
     app_pass:str
 
+APP_USER_INIT_SQL = [
+    "drop table if exists dbtuser.scd_raadata",
+    "create table dbtuser.scd_raadata "
+    "(kode varchar2(12 char), navn varchar2(40 char), "
+    "oppdatert timestamp(6), opprettet timestamp(6))"
+]
+
 
 @pytest.fixture(autouse=True, scope="session")
 def oracle_connection():
@@ -72,8 +79,10 @@ def oracle_connection():
             service_name=config.service_name
         ) as con:
             with con.cursor() as cur:
-                yield con
-
+                for sql in APP_USER_INIT_SQL:
+                    cur.execute(sql)
+                con.commit()
+            yield con
         for k in env_vars:
             del os.environ[k]
     finally:

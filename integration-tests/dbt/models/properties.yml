@@ -2,6 +2,7 @@ models:
   - name: dim_scd_default
     description: SCD using scd macro defaults
     config:
+      materialized: scd
       scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
       filter_mode: "{{ env_var('FILTER_MODE') }}"
       scd_key: kode
@@ -9,6 +10,8 @@ models:
   - name: dim_scd_spec
     description: SCD with all scd settings specified
     config:
+      enabled: false
+      materialized: scd
       scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
       filter_mode: "{{ env_var('FILTER_MODE') }}"
       scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"

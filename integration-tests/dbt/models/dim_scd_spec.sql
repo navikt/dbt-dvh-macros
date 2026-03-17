@@ -4,7 +4,7 @@ select
     , kode2
     , navn
     , navn2
-    , to_date('oppdatert', 'yyyymmdd') as endret
-    , to_date('opprettet', 'yyyymmdd') as opprettet
+    , oppdatert as endret
+    , opprettet as opprettet
 from
     {{ source(env_var('DBT_SCHEMA'), "scd_raadata") }}

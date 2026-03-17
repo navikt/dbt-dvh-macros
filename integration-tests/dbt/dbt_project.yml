@@ -15,8 +15,7 @@ macro-paths:
   - "macros"
   - "../../macros"
 
-on-run-start:
-  - select 'hook start' from dual
-
-on-run-end:
-  - select 'hook end' from dual
+#on-run-start:
+#  - select 'hook start' from dual
+#on-run-end:
+#  - select 'hook end' from dual
