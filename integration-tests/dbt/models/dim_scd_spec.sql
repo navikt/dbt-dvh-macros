@@ -7,4 +7,4 @@ select
     , to_date('oppdatert', 'yyyymmdd') as endret
     , to_date('opprettet', 'yyyymmdd') as opprettet
 from
-    {{ ref('csv_dim_scd_init') }}
+    {{ source(env_var('DBT_SCHEMA'), "scd_raadata") }}

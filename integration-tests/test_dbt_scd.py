@@ -1,11 +1,13 @@
 # Property-based integrasjonstest 
 import pytest
 import os
-import hypothesis
+from hypothesis import given, settings, strategies as st
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from pathlib import Path
+from datetime import datetime
 
-
+RC_INIT = 5
+RC_DELTA = 3
 
 class DbtEnvVarContext:
     def __init__(self, **kwargs) -> None:
@@ -31,22 +33,44 @@ def run_dbt(*args):
         os.chdir(original_dir)
     assert run.success, run.result or run.exception
 
-@pytest.mark.usefixtures("oracle_container")
+@pytest.mark.usefixtures("oracle_connection")
 def test_dbt_debug():
     run_dbt("debug")
 
-@pytest.mark.usefixtures("oracle_container")
-@pytest.mark.order(after="test_dbt_install_package")
-def test_dbt_install_package():
-    run_dbt("deps")
+@pytest.mark.usefixtures("oracle_connection")
+@pytest.mark.order(after="test_dbt_debug")
+@settings(deadline=1000)
+@given(
+    kode=st.lists(st.text(min_size=8, max_size=8), min_size=RC_INIT, max_size=RC_INIT),
+    navn=st.lists(st.text(min_size=32, max_size=32), min_size=RC_INIT, max_size=RC_INIT),
+    oppdatert=st.lists(st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime.today()), min_size=RC_INIT, max_size=RC_INIT),
+    opprettet=st.lists(st.datetimes(min_value=datetime(1900, 1, 1), max_value=datetime(2020, 1, 1)), min_size=RC_INIT, max_size=RC_INIT)
+    )
+def test_dbt_incremental(oracle_connection, kode, navn, oppdatert, opprettet):
+    table = oracle_connection.username + ".scd_raadata"
+    with oracle_connection.cursor() as cur:
+        cur.execute(f"drop table if exists {table}")
+        cur.execute(f"create table {table} "
+            "(kode varchar2(8 char), navn varchar2(32 char), "
+            "oppdatert timestamp(6), opprettet timestamp(6))"
+            )
+        cur.executemany(
+            f"insert into {table} (navn, kode, oppdatert, opprettet) values(:navn, :kode, :oppdatert, :opprettet)",
+            parameters=[dict(kode=k, navn=n, oppdatert=od, opprettet=ot) for k,n,od,ot in zip(kode,navn,oppdatert,opprettet)]
+        )
+        oracle_connection.commit()
+    
+    with DbtEnvVarContext(
+        SCD_TYPE="0",
+        FILTER_MODE="changed_at",
+    ):
+        run_dbt("run", "--select", "dim_scd_default")
+    
+    with oracle_connection.cursor() as cur:
+        cur.execute(f"drop table if exists {table}")
 
-@pytest.mark.usefixtures("oracle_container")
-@pytest.mark.order(after="test_dbt_install_package")
-def test_dbt_seed():
-    run_dbt("seed")
-
-@pytest.mark.usefixtures("oracle_container")
-@pytest.mark.order(after="test_dbt_seed")
+@pytest.mark.usefixtures("oracle_connection")
+@pytest.mark.order(after="test_dbt_incremental")
 def test_dbt_run_scd0_default():
     with DbtEnvVarContext(
         SCD_TYPE=0,

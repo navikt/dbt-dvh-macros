@@ -1,4 +1,0 @@
-packages:
-  - local: ../../
-    name: dbt_dvh_macros
-sha1_hash: daa9fd6d4e7b1f0cf434b904f7f247f087ab19a3

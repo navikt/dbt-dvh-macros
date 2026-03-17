@@ -3,7 +3,7 @@ integration_tests:
   outputs:
     testcontainer:
       type: oracle
-      user: "{{env_var('DBT_ENV_SECRET_USER')}}"
+      user: "{{env_var('DBT_USER')}}"
       pass: "{{env_var('DBT_ENV_SECRET_PASS')}}"
       protocol: tcp
       host: "{{ env_var('DBT_HOST') }}"

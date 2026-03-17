@@ -4,3 +4,4 @@ __pycache__
 */dbt/logs
 adapter default incremental.sql
 */dbt/dbt_packages
+.hypothesis
