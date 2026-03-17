@@ -3,7 +3,7 @@ Makroene er inndelt i mapper etter bruksområde.
 ## `scd`
 Implementasjon av DBT materialiseringstype `scd` som støtter Slowly Changing Dimension Type 0, 1, og 2 inkrementelle SQL transformasjoner/modeller for dbt-oracle adapteret.
 
-Dette løses hovedsaklig ved å sortere rader og så eksekvere MERGE mot en Primary Key kolonne.
+Dette løses hovedsaklig ved å sortere innkommende rader, slå opp mot eksisterende tabell, og så eksekvere MERGE på Primary Key kolonne.
 
 Navngivning og metadata kolonner følger typisk DVH bruk.
 
