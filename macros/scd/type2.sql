@@ -40,8 +40,9 @@ using (
             {{ ns.expression_primary_key }} as {{ ns.primary_key }}
         {% elif col == ns.valid_from %}
             -- kan ikke bruke DBT_INTERNAL_IS_FIRST_ROW_FOR_SCD_KEY her fordi den raden kan ha blitt droppet
-            -- pga duplikat fjerning
-            case when lag(0, 1, 1)
+            -- pga duplikat fjerning (WHERE klausul kjører først)
+            -- fiks 18.04.26: kun bruk created_at hvis det ikke finnes rad i target
+            case when DBT_INTERNAL_EXISTING_PRIMARY_KEY is null and lag(0, 1, 1)
             {{ SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
             = 1 then coalesce(DBT_INTERNAL_CTE_FINAL.{{ ns.created_at }}, {{ ns.valid_from_default }})
             else {{ ns.changed_at }} end

@@ -135,9 +135,9 @@
     {% endcall %}
 
     {% do SCD__validate_scd_target_rows(ns) %}
-    {# TODO: handle errors #}
+    {# TODO: handle errors better #}
     {% if ns.errors %}
-        {% do exceptions.warn("SCD logic failed for " ~ ns.target_relation ~ " " ~ ns.errors) %}
+        {% do exceptions.raise_compiler_error("SCD logic failed for " ~ ns.target_relation ~ " " ~ ns.errors) %}
     {% endif %}
 
     {# model variable, like sql variable, is implicit, created from parsing stage #}

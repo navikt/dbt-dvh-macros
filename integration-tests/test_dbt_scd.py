@@ -1,7 +1,7 @@
 # Property-based integrasjonstest 
 import pytest
 import os
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, reproduce_failure, Phase
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from pathlib import Path
 from datetime import datetime
@@ -34,15 +34,17 @@ def run_dbt(*args):
     assert run.success, run.result or run.exception
 
 
+#@reproduce_failure('6.151.9', b'AXicazEAghZUohVEGEwxwAJoIejE/sSREQgZYJA6AheoL+DIBADL0Dml')
 @pytest.mark.usefixtures("oracle_connection")
-@settings(deadline=2000)
+@settings(deadline=2000, print_blob=True, phases=[Phase.generate])
 @given(
     kode=st.lists(st.text(min_size=4, max_size=12), min_size=RC_INIT, max_size=RC_INIT),
     navn=st.lists(st.text(min_size=20, max_size=40), min_size=RC_INIT, max_size=RC_INIT),
     oppdatert=st.lists(st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime.today()), min_size=RC_INIT, max_size=RC_INIT),
-    opprettet=st.lists(st.datetimes(min_value=datetime(1900, 1, 1), max_value=datetime(2020, 1, 1)), min_size=RC_INIT, max_size=RC_INIT)
-    )
-def test_dbt_incremental(oracle_connection, kode, navn, oppdatert, opprettet):
+    opprettet=st.lists(st.datetimes(min_value=datetime(1900, 1, 1), max_value=datetime(2020, 1, 1)), min_size=RC_INIT, max_size=RC_INIT),
+    changed_at=st.sampled_from(["scd_key", "changed_at", "changed_at_per_scd_key"]),
+)
+def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, changed_at):
     table = oracle_connection.username + ".scd_raadata"
 
     with oracle_connection.cursor() as cur:
@@ -53,31 +55,6 @@ def test_dbt_incremental(oracle_connection, kode, navn, oppdatert, opprettet):
         oracle_connection.commit()
     
     with DbtEnvVarContext(
-        SCD_TYPE="0",
-        FILTER_MODE="changed_at",
+        FILTER_MODE=changed_at,
     ):
-        run_dbt("run", "--select", "dim_scd_default")
-    
-
-
-
-#def validate_results(connection, query, expected_results):
-#    """Validate the results of a query against expected results."""
-#    with connection.cursor() as cursor:
-#        cursor.execute(query)
-#        results = cursor.fetchall()
-#        assert results == expected_results, f"Validation failed: {results} != {expected_results}"
-
-
-
-#service_name = oracle.dbname
-#with oracledb.connect(
-#    #user="system",
-#    #password=oracle.oracle_password,
-#    service_name=oracle.dbname, # type: ignore
-#    user=oracle.username, # type: ignore
-#    password=oracle.password, # type: ignore
-#    host=oracle.get_container_host_ip(),
-#    port=oracle.get_exposed_port(oracle.port),
-#    
-#) as con:
+        run_dbt("run", "--select", "dim_scd0", "dim_scd1", "dim_scd2")

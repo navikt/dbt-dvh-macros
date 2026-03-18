@@ -1,9 +1,23 @@
 models:
-  - name: dim_scd_default
+  - name: dim_scd0
     description: SCD using scd macro defaults
     config:
       materialized: scd
-      scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
+      scd_type: 0
+      filter_mode: "{{ env_var('FILTER_MODE') }}"
+      scd_key: kode
+  - name: dim_scd1
+    description: SCD using scd macro defaults
+    config:
+      materialized: scd
+      scd_type: 1
+      filter_mode: "{{ env_var('FILTER_MODE') }}"
+      scd_key: kode
+  - name: dim_scd2
+    description: SCD using scd macro defaults
+    config:
+      materialized: scd
+      scd_type: 2
       filter_mode: "{{ env_var('FILTER_MODE') }}"
       scd_key: kode
 
@@ -12,7 +26,7 @@ models:
     config:
       enabled: false
       materialized: scd
-      scd_type: "{{ env_var('SCD_TYPE') | as_number }}"
+      scd_type: 0 # todo
       filter_mode: "{{ env_var('FILTER_MODE') }}"
       scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"
       scd_key: kode
