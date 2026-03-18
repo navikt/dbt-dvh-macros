@@ -21,12 +21,13 @@ Ytterligere informasjon:
 ### Eksempel
 ```yaml
 models:
-    - name: dim_gronnsaker
+    - name: dim_kodeverk
       description: SCD-1 dimensjon for grønnsaker
       config:
-        materialization: scd
+        materialized: scd
         scd_type: 1
-        scd_key: gronnsak_kode
+        scd_key: kode
+        scd_hash: [navn, kildesystem]
         filter_mode: changed_at
 ```
 
