@@ -29,3 +29,5 @@ models:
         scd_key: gronnsak_kode
         filter_mode: changed_at
 ```
+
+## `utils` (under arbeid)
