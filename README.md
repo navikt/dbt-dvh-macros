@@ -1,5 +1,5 @@
 # dbt-dvh-macros
-DBT makroer utviklet for DVH til felles bruk.
+DBT makroer utviklet i DVH til felles bruk.
 
 ## Installasjon
 I din packages.yml fil:
