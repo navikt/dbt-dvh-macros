@@ -5,6 +5,8 @@ from hypothesis import given, settings, strategies as st, reproduce_failure, Pha
 from dbt.cli.main import dbtRunner, dbtRunnerResult
 from pathlib import Path
 from datetime import datetime
+import csv
+
 
 RC_INIT = 5
 RC_DELTA = 3
@@ -33,10 +35,19 @@ def run_dbt(*args):
         os.chdir(original_dir)
     assert run.success, run.result or run.exception
 
+def write_csv(fp, cursor):
+    headers = [col[0] for col in cursor.description]
+    with open(fp, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(headers)
+        while True:
+            rows = cursor.fetchmany()
+            if not rows:
+                break
+            writer.writerows(rows)
 
-#@reproduce_failure('6.151.9', b'AXicazEAghZUohVEGEwxwAJoIejE/sSREQgZYJA6AheoL+DIBADL0Dml')
 @pytest.mark.usefixtures("oracle_connection")
-@settings(deadline=2000, print_blob=True, phases=[Phase.generate])
+@settings(deadline=4000, print_blob=True, phases=[Phase.generate]) # stop at first failure
 @given(
     kode=st.lists(st.text(min_size=4, max_size=12), min_size=RC_INIT, max_size=RC_INIT),
     navn=st.lists(st.text(min_size=20, max_size=40), min_size=RC_INIT, max_size=RC_INIT),
@@ -45,11 +56,10 @@ def run_dbt(*args):
     changed_at=st.sampled_from(["scd_key", "changed_at", "changed_at_per_scd_key"]),
 )
 def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, changed_at):
-    table = oracle_connection.username + ".scd_raadata"
-
     with oracle_connection.cursor() as cur:
+        cur.execute("truncate table dbtuser.scd_raadata")
         cur.executemany(
-            f"insert into {table} (navn, kode, oppdatert, opprettet) values(:navn, :kode, :oppdatert, :opprettet)",
+            "insert into dbtuser.scd_raadata (navn, kode, oppdatert, opprettet) values(:navn, :kode, :oppdatert, :opprettet)",
             parameters=[dict(kode=k, navn=n, oppdatert=od, opprettet=ot) for k,n,od,ot in zip(kode,navn,oppdatert,opprettet)]
         )
         oracle_connection.commit()
@@ -57,4 +67,21 @@ def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, ch
     with DbtEnvVarContext(
         FILTER_MODE=changed_at,
     ):
-        run_dbt("run", "--select", "dim_scd0", "dim_scd1", "dim_scd2")
+        try:
+            run_dbt("run", "--select", "dim_scd0", "dim_scd1", "dim_scd2")
+        except Exception:
+            # dump tables to csv
+            tables = ["scd_raadata", "dim_scd0", "dim_scd1", "dim_scd2"]
+            folder = Path(__file__).parent.parent / "failures"
+            folder.mkdir(exist_ok=True)
+            for table in tables:
+                path = (folder / (table + ".csv"))
+                try:
+                    with oracle_connection.cursor() as cur:
+                        cur.arraysize = 1000
+                        cur.execute(f"select * from dbtuser.{table}")
+                        write_csv(path, cur)
+                except Exception:
+                    # may occur if table not created?
+                    pass
+            raise

@@ -6,3 +6,4 @@ adapter default incremental.sql
 */dbt/dbt_packages
 .hypothesis
 */dbt/target
+failures
