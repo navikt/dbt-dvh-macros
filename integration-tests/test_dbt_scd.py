@@ -8,8 +8,7 @@ from datetime import datetime
 import csv
 
 
-RC_INIT = 5
-RC_DELTA = 3
+BATCH_SIZE = 5
 
 class DbtEnvVarContext:
     def __init__(self, **kwargs) -> None:
@@ -49,15 +48,15 @@ def write_csv(fp, cursor):
 @pytest.mark.usefixtures("oracle_connection")
 @settings(deadline=4000, print_blob=True, phases=[Phase.generate]) # stop at first failure
 @given(
-    kode=st.lists(st.text(min_size=4, max_size=12), min_size=RC_INIT, max_size=RC_INIT),
-    navn=st.lists(st.text(min_size=20, max_size=40), min_size=RC_INIT, max_size=RC_INIT),
-    oppdatert=st.lists(st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime.today()), min_size=RC_INIT, max_size=RC_INIT),
-    opprettet=st.lists(st.datetimes(min_value=datetime(1900, 1, 1), max_value=datetime(2020, 1, 1)), min_size=RC_INIT, max_size=RC_INIT),
+    kode=st.lists(st.text(min_size=4, max_size=12), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
+    navn=st.lists(st.text(min_size=20, max_size=40), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
+    oppdatert=st.lists(st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime.today()), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
+    opprettet=st.lists(st.datetimes(min_value=datetime(1900, 1, 1), max_value=datetime(2020, 1, 1)), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
     changed_at=st.sampled_from(["scd_key", "changed_at", "changed_at_per_scd_key"]),
 )
 def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, changed_at):
     with oracle_connection.cursor() as cur:
-        cur.execute("truncate table dbtuser.scd_raadata")
+        #cur.execute("truncate table dbtuser.scd_raadata")
         cur.executemany(
             "insert into dbtuser.scd_raadata (navn, kode, oppdatert, opprettet) values(:navn, :kode, :oppdatert, :opprettet)",
             parameters=[dict(kode=k, navn=n, oppdatert=od, opprettet=ot) for k,n,od,ot in zip(kode,navn,oppdatert,opprettet)]
