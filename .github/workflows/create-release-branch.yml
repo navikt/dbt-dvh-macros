@@ -22,12 +22,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Create git tag
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          git tag -a $VERSION -m "Release $VERSION"
-          git push origin refs/tags/$VERSION
     
       - name: Create orphan release branch
         run: |
