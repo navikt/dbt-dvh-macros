@@ -2,7 +2,7 @@
 DBT makroer utviklet i DVH til felles bruk.
 
 ## Installasjon
-I din packages.yml fil:
+packages.yml
 ```yaml
 packages:
   - git: "https://github.com/navikt/dbt-dvh-macros.git"
