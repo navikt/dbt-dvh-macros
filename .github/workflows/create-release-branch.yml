@@ -1,0 +1,58 @@
+# .github/workflows/create-release-branch.yml
+name: Create Release Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Validate version format
+        run: |
+          if ! echo "${{ github.event.inputs.version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Invalid version format. Must be x.y.z"
+            exit 1
+          fi
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create orphan release branch
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          BRANCH="release/$VERSION"
+
+          # Create orphan branch (no history)
+          git checkout --orphan $BRANCH
+
+          # Remove everything
+          git rm -rf .
+
+          # Restore only macros folder and dbt_project.yml
+          git checkout main -- macros/
+          git checkout main -- dbt_project.yml
+
+          # Commit and push
+          git add macros/ dbt_project.yml
+          git commit -m "Release $VERSION"
+          git push origin $BRANCH
+
+      - name: Create git tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git tag $VERSION
+          git push origin $VERSION
