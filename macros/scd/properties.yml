@@ -1,0 +1,70 @@
+macros:
+  - name: materialization_scd_oracle
+    description: |
+      VERSION 1.0.0
+      A custom incremental materialization implementing SCD-0/1/2 type tables by merging on the primary key.
+      
+      Model configuration:
+
+      scd_key (required):
+        Set of columns which uniquely identify the slowly changing objects.
+        NULL values are supported, and changing the scd_key is possible,
+        but not recommended.
+        Adding an existing column to the scd_key or adding an entirely new column
+        will work, but removing columns will destroy SCD data integrity.
+      
+      scd_type (required):
+        The scd_type determines how changes to the objects are handled in the target table:
+          - 0: ignore
+          - 1: overwrite rows with latest information
+          - 2: invalidate old rows and insert new rows
+        Changing this value is not recommended, but it is possible to "upgrade"
+        from SCD-x to SCD-y where y>x without destroying SCD data integriy.
+      
+      filter_mode (required):
+        A string parameter which determines how incoming rows are filtered.
+          - changed_at: process only rows with changed_at greater than max(changed_at) in the target table
+          - changed_at_per_scd_key: similar, but max-comparison is done per scd_key
+          - scd_key: process only rows with new (previously unseen) scd_key
+
+      scd_hash (optional):
+        Set of columns which determine what state the object is in,
+        commonly a single column with a calculated hash.
+        If not provided, deduplication of contiguous object state is not performed.
+        This may nonetheless result in a performance gain.
+        This property is ignored for SCD-0.
+
+      primary_key (default: pk_<model_name>)
+        The column uniquely identifying each row.
+        If not present in the model select, a primary key is created.
+        Changing this is not recommended as it may destroy SCD data integrity.
+
+      changed_at (default: oppdatert_tid_kilde)
+        The column in the model select containing the date/timestamp of when the change to object occurred.
+        Changing this column is not recommended as it may destroy SCD data integrity.
+        NB: This column can NOT be null
+
+      created_at (default: opprettet_tid_kilde):
+        The column in the model select containing the date/timestamp of when the object was first created.
+        Changing this column is not recommended.
+      
+      valid_from (default: gyldig_fom_tid):
+      valid_to (default: gyldig_til_tid):
+      valid_flag (default: gyldig_flagg):
+        These columns are added to the target table and their values are calculated according to the SCD type.
+        Putting these in the model select will result in an error.
+        Changing these is not recommended as it will certainly destroy SCD data integrity.
+      
+      updated_at (default: oppdatert_dato)
+      loaded_at (default: lastet_dato)
+        These columns may be in the model select, otherwise they are created and filled with DBT's run_started_at.
+
+      schema_changes_enabled (optional):
+        Since the SCD materialization will create columns, default on_schema_change behaviour can not be used.
+        Four types of schema changes are supported, and each may be enabled by listing them.
+        The default behavior is to error out if changes are detected but not enabled in the configuration.
+        The following changes are detected and supported:
+          - append: add new columns to the target table
+          - expand: expand fixed-size target columns to avoid truncation of incoming data
+          - morph: change the datatype of target columns to match incoming data (may cause errors if no implicit conversion exists)
+          - remove: deletes target columns no longer present in the model
