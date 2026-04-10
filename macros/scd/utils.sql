@@ -28,54 +28,54 @@
 
     {% set ns.primary_key = config.get("primary_key", "pk_" ~ config.model.name).lower() %}
     {% if not ns.primary_key is string %}
-        {% do SCD__add_error_msg(ns, "config", "primary_key property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "primary_key property must be string") %}
     {% endif %}
 
     {% set tmp = config.get("scd_key", none) %}
     {% set ns.scd_key_columns = [tmp] if tmp is string else tmp %}
-    {% if not SCD__is_list(ns.scd_key_columns) %}
-        {% do SCD__add_error_msg(ns, "config", "scd_key property missing or must be string or list of strings") %}
+    {% if not dbt_dvh_macros.SCD__is_list(ns.scd_key_columns) %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_key property missing or must be string or list of strings") %}
     {% endif %}
 
     {% set tmp = config.get("scd_hash", []) %}
     {% set ns.scd_hash_columns = [tmp] if tmp is string else tmp %}
-    {% if not SCD__is_list(ns.scd_hash_columns) %}
-        {% do SCD__add_error_msg(ns, "config", "scd_hash property must be string or list of strings") %}
+    {% if not dbt_dvh_macros.SCD__is_list(ns.scd_hash_columns) %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_hash property must be string or list of strings") %}
     {% endif %}
 
     {% set ns.created_at = config.get("created_at", "opprettet_tid_kilde").lower() %}
     {% if not ns.created_at is string %}
-        {% do SCD__add_error_msg(ns, "config", "created_at property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "created_at property must be string") %}
     {% endif %}
 
     {% set ns.changed_at = config.get("changed_at", "oppdatert_tid_kilde").lower() %}
     {% if not ns.changed_at is string %}
-        {% do SCD__add_error_msg(ns, "config", "changed_at property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "changed_at property must be string") %}
     {% endif %}
 
     {% set ns.valid_from = config.get("valid_from", "gyldig_fom_tid").lower() %}
     {% if not ns.valid_from is string %}
-        {% do SCD__add_error_msg(ns, "config", "valid_from property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "valid_from property must be string") %}
     {% endif %}
 
     {% set ns.valid_to = config.get("valid_to", "gyldig_til_tid").lower() %}
     {% if not ns.valid_to is string %}
-        {% do SCD__add_error_msg(ns, "config", "valid_to property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "valid_to property must be string") %}
     {% endif %}
 
     {% set ns.valid_flag = config.get("valid_flag", "gyldig_flagg").lower() %}
     {% if not ns.valid_flag is string %}
-        {% do SCD__add_error_msg(ns, "config", "valid_flag property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "valid_flag property must be string") %}
     {% endif %}
 
     {% set ns.loaded_at = config.get("loaded_at", "lastet_dato").lower() %}
     {% if not ns.loaded_at is string %}
-        {% do SCD__add_error_msg(ns, "config", "loaded_at property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "loaded_at property must be string") %}
     {% endif %}
 
     {% set ns.updated_at = config.get("updated_at", "oppdatert_dato").lower() %}
     {% if not ns.updated_at is string %}
-        {% do SCD__add_error_msg(ns, "config", "updated_at property must be string") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "updated_at property must be string") %}
     {% endif %}
 
     {% set ns.valid_from_default = "to_date('01.01.1900', 'dd.mm.yyyy')" %}
@@ -83,21 +83,21 @@
 
     {% set ns.filter_mode = config.get("filter_mode", none) %}
     {% if not ns.filter_mode in ["changed_at", "changed_at_per_scd_key", "scd_key"] %}
-        {% do SCD__add_error_msg(ns, "config", "unrecognized or missing filter_mode") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "unrecognized or missing filter_mode") %}
     {% endif %}
 
     {% set ns.scd_type = config.get("scd_type", none)%}
     {% if not ns.scd_type in [0, 1, 2] %}
-        {% do SCD__add_error_msg(ns, "config", "unrecognized or missing scd_type") %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "unrecognized or missing scd_type") %}
     {% endif %}
 
     {% set tmp = config.get("schema_changes_enabled", []) %}
-    {% if not SCD__is_list(tmp) %}
-        {% do SCD__add_error_msg(ns, "config", "schema_changes_enabled must be list of strings") %}
+    {% if not dbt_dvh_macros.SCD__is_list(tmp) %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "schema_changes_enabled must be list of strings") %}
     {% else %}
         {% for enabled_change in tmp %}
             {% if enabled_change not in ["append", "remove", "expand", "morph"] %}
-                {% do SCD__add_error_msg(ns, "config", "unknown schema change") %}
+                {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "unknown schema change") %}
             {% endif %}
         {% endfor %}
     {% endif %}
@@ -132,14 +132,14 @@
     %}
     {% for col in must_exist_columns %}
         {% if col not in source_columns_names %}
-            {% do SCD__add_error_msg(ns, "model", col ~ " missing from select")%}
+            {% do dbt_dvh_macros.SCD__add_error_msg(ns, "model", col ~ " missing from select")%}
         {% endif %}
     {% endfor %}
 
     {% set must_not_exist_columns = [ns.valid_from, ns.valid_to, ns.valid_flag] %}
     {% for col in must_not_exist_columns %}
         {% if col in source_columns_names %}
-            {% do SCD__add_error_msg(ns, "model", col ~ " not allowed in select ")%}
+            {% do dbt_dvh_macros.SCD__add_error_msg(ns, "model", col ~ " not allowed in select ")%}
         {% endif %}
     {% endfor %}
 
@@ -180,7 +180,7 @@
         {% endif %}
     {% endfor %}
     {% if not ns.changed_at_data_type %}
-        {% do SCD__add_error_msg(ns, "internal", "unable to determine changed_at datatype")%}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "internal", "unable to determine changed_at datatype")%}
     {% endif %}
 
 {% endmacro %}
@@ -459,7 +459,7 @@
                 select
                     decode
                     (
-                        lag({{ SCD__sha256_hash(ns.scd_hash_columns, "a") }}) over
+                        lag({{ dbt_dvh_macros.SCD__sha256_hash(ns.scd_hash_columns, "a") }}) over
                         (
                             partition by
                             {% for col in ns.scd_key_columns %}
@@ -472,7 +472,7 @@
                             order by
                                 a.{{ ns.valid_from }}, a.{{ ns.valid_to }}
                         )
-                        , {{ SCD__sha256_hash(ns.scd_hash_columns, "a") }}, 1
+                        , {{ dbt_dvh_macros.SCD__sha256_hash(ns.scd_hash_columns, "a") }}, 1
                         , 0
                     ) as same_as_prev
                 from

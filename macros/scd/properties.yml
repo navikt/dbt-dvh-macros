@@ -1,7 +1,7 @@
 macros:
   - name: materialization_scd_oracle
     description: |
-      VERSION 1.0
+      VERSION 1.0.0
       A custom incremental materialization implementing SCD-0/1/2 type tables by merging on the primary key.
       
       Model configuration:

@@ -16,12 +16,12 @@ using (
                         decode(
                             DBT_INTERNAL_SOURCE.{{ col }}
                             , lag(DBT_INTERNAL_SOURCE.{{ col }}, 1, DBT_INTERNAL_TARGET_JOIN.{{ col }})
-                                {{ SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_SOURCE") }}
+                                {{ dbt_dvh_macros.SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_SOURCE") }}
                             , 1, 0
                         ) = 1
                     {% endfor %}
                     then 1 else 0 end as DBT_INTERNAL_IS_REPETITION
-                , lag(0, 1, 1) {{ SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_SOURCE") }}
+                , lag(0, 1, 1) {{ dbt_dvh_macros.SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_SOURCE") }}
                     as DBT_INTERNAL_IS_FIRST_ROW_FOR_SCD_KEY
             {% endif %}
         from
@@ -43,22 +43,22 @@ using (
             -- pga duplikat fjerning (WHERE klausul kjører først)
             -- fiks 18.04.26: kun bruk created_at hvis det ikke finnes rad i target
             case when DBT_INTERNAL_EXISTING_PRIMARY_KEY is null and lag(0, 1, 1)
-            {{ SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
+            {{ dbt_dvh_macros.SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
             = 1 then coalesce(DBT_INTERNAL_CTE_FINAL.{{ ns.created_at }}, {{ ns.valid_from_default }})
             else {{ ns.changed_at }} end
             as {{ ns.valid_from }}
         {% elif col == ns.valid_to %}
             lead({{ ns.changed_at }}, 1, {{ ns.valid_to_default }})
-            {{ SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
+            {{ dbt_dvh_macros.SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
             as {{ ns.valid_to }}
         {% elif col == ns.valid_flag %}
             lead(0, 1, 1)
-            {{ SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
+            {{ dbt_dvh_macros.SCD__window(ns.scd_key_columns, orderby_columns, "asc", "DBT_INTERNAL_CTE_FINAL") }}
             as {{ ns.valid_flag }}
         {% elif col == ns.updated_at and ns.generate_updated_at %}
-            {{ SCD__etl_date() }} as {{ ns.updated_at }}
+            {{ dbt_dvh_macros.SCD__etl_date() }} as {{ ns.updated_at }}
         {% elif col == ns.loaded_at and ns.generate_loaded_at %}
-            {{ SCD__etl_date() }} as {{ ns.loaded_at }}
+            {{ dbt_dvh_macros.SCD__etl_date() }} as {{ ns.loaded_at }}
         {% else %}
             DBT_INTERNAL_CTE_FINAL.{{ col }}
         {% endif %}
@@ -82,7 +82,7 @@ using (
                 DBT_INTERNAL_CTE_FINAL.DBT_INTERNAL_EXISTING_PRIMARY_KEY as {{ ns.primary_key }}
             {% elif col == ns.updated_at %}
                 {% if ns.generate_updated_at %}
-                    {{ SCD__etl_date() }} as {{ ns.updated_at }}
+                    {{ dbt_dvh_macros.SCD__etl_date() }} as {{ ns.updated_at }}
                 {% else %}
                     min(DBT_INTERNAL_CTE_FINAL.{{ ns.updated_at }}) as {{ ns.updated_at }}
                 {% endif %}

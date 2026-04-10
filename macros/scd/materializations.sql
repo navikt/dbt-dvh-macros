@@ -3,7 +3,7 @@
 {#------------------------------------------------------------------------------------------------#}
 
     {# read scd config and perform basic validation of contents, use namespace to avoid pollution #}
-    {% set ns = SCD__validate_config() %}
+    {% set ns = dbt_dvh_macros.SCD__validate_config() %}
     {% if ns.errors %}
         {% do exceptions.raise_compiler_error(ns.errors) %}
     {% endif %}
@@ -31,7 +31,7 @@
         {{ create_table_as(true, ns.source_relation, get_empty_subquery_sql(sql), language) }}
     {% endcall %}
     {% set ns.source_columns = get_columns_in_relation(ns.source_relation) %}
-    {% do SCD__validate_source_columns_against_config(ns) %}
+    {% do dbt_dvh_macros.SCD__validate_source_columns_against_config(ns) %}
     {% if ns.errors %}
         {% do adapter.drop_relation(ns.source_relation) %} {# cleanup temp table #}
         {% do exceptions.raise_compiler_error(ns.errors) %}
@@ -54,7 +54,7 @@
     {% if existing_relation %}
 
         {% set ns.target_columns = get_columns_in_relation(ns.target_relation) %}
-        {% set changed = SCD__process_schema_changes(ns) %}
+        {% set changed = dbt_dvh_macros.SCD__process_schema_changes(ns) %}
         {% if ns.errors %}
             {% do adapter.drop_relation(ns.source_relation) %} {# cleanup temp table #}
             {% do exceptions.raise_compiler_error(ns.errors)%}
@@ -111,7 +111,7 @@
     {% endif %}
 
 
-    {% set insert_sql = SCD__get_scd_model_source_insert_sql(ns, not existing_relation, sql) %}
+    {% set insert_sql = dbt_dvh_macros.SCD__get_scd_model_source_insert_sql(ns, not existing_relation, sql) %}
     {# insert the (possibly filtered) rows to the source table (again due to get_column_schema_from_query) #}
     {% call statement("insert_to_source_table", language=language, fetch_result=false) %}
         {{ insert_sql }}
@@ -123,18 +123,18 @@
 
 
     {% if ns.scd_type == 0 %}
-        {% set merge_sql = SCD__get_type0_merge_sql(ns) %}
+        {% set merge_sql = dbt_dvh_macros.SCD__get_type0_merge_sql(ns) %}
     {% elif ns.scd_type == 1 %}
-        {% set merge_sql = SCD__get_type1_merge_sql(ns) %}
+        {% set merge_sql = dbt_dvh_macros.SCD__get_type1_merge_sql(ns) %}
     {% elif ns.scd_type == 2 %}
-        {% set merge_sql = SCD__get_type2_merge_sql(ns) %}
+        {% set merge_sql = dbt_dvh_macros.SCD__get_type2_merge_sql(ns) %}
     {% endif %}
     
     {% call statement("main", language=language) %}
         {{ merge_sql }}
     {% endcall %}
 
-    {% do SCD__validate_scd_target_rows(ns) %}
+    {% do dbt_dvh_macros.SCD__validate_scd_target_rows(ns) %}
     {# TODO: handle errors better #}
     {% if ns.errors %}
         {% do exceptions.raise_compiler_error("SCD logic failed for " ~ ns.target_relation ~ " " ~ ns.errors) %}
