@@ -1,0 +1,2 @@
+* @navikt/teamoppfolging
+* 
