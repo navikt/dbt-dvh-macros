@@ -1,2 +1,2 @@
-*.sql linquist-language=SQL
-*.yml linquist-language=YAML
+*.sql linguist-language=SQL
+*.yml linguist-language=YAML
