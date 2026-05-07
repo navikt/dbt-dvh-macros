@@ -514,19 +514,21 @@
     description:
         used by SCD type 1 and 2 to generate history correctly
 #}
+{%- set alias = alias ~ "." if alias else alias -%}
 {{
-    "over(partition by " ~ alias ~ "." ~ (part_by | join(", " ~ alias ~ ".")) 
-    ~ " order by " ~ alias ~ "." ~ (order_by | join( " " ~ dir ~ ", " ~ alias ~ ".")) ~ " " ~ dir 
+    "over(partition by " ~ alias ~ (part_by | join(", " ~ alias)) 
+    ~ " order by " ~ alias ~ (order_by | join( " " ~ dir ~ ", " ~ alias)) ~ " " ~ dir 
     ~ ")"
 }}
 {% endmacro %}
 
 
 {%- macro SCD__sha256_hash(columns, alias) -%}
+{%- set alias = alias ~ "." if alias else alias -%}
     rawtohex(standard_hash(
     {%- for column in columns -%}
         {%- if loop.first -%}
-            {{alias}}.{{ column }}
+            {{alias}}{{ column }}
         {%- else -%}
             || '¿' || {{alias}}.{{ column }}
         {%- endif -%}
