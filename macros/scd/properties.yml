@@ -30,7 +30,9 @@ macros:
       scd_hash (optional):
         Set of columns which determine what state the object is in,
         commonly a single column with a calculated hash.
-        If not provided, deduplication of contiguous object state is not performed.
+        If not provided, deduplication of contiguous object state is not performed,
+        except in the case where it would result in unstable sorting
+        due to identical scd key and changed_at.
         This may nonetheless result in a performance gain.
         This property is ignored for SCD-0.
 

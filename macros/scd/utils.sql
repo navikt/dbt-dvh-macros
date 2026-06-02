@@ -209,13 +209,30 @@
             {% if not loop.first %} , {% endif %} {{ col }}
         {% endfor %}
     )
+    with DBT_INTERNAL_WRAP_SRC as (
+        select
+            {% for col in source_columns_names %}
+                {% if not loop.first %} , {% endif %} {{ col }}
+            {% endfor %}
+            {% if not ns.scd_hash_columns %}
+                , row_number() over(
+                    partition by
+                    {% for col in ns.scd_key_columns + [ns.changed_at] %}
+                        {% if not loop.first %} , {% endif %} {{ col }}
+                    {% endfor %}
+                    order by 1
+                ) as rn_stable_sort
+            {% endif %}
+        from (
+            {{ sql }}
+        )
+    )
     select
         {% for col in source_columns_names %}
             {% if not loop.first %} , {% endif %} DBT_INTERNAL_WRAP_SRC.{{ col }}
         {% endfor %}
-    from (
-        {{ sql }}
-    ) DBT_INTERNAL_WRAP_SRC
+    from
+        DBT_INTERNAL_WRAP_SRC
     where
     {% if ignore_filter %}
         1 = 1
@@ -236,7 +253,7 @@
             {% for col in ns.scd_key_columns %}
                 {% if not loop.first %} and {% endif %} decode(DBT_INTERNAL_WRAP_SRC.{{ col }}, DBT_INTERNAL_WRAP_TARG.{{ col }}, 1, 0) = 1
             {% endfor %}
-                and DBT_INTERNAL_WRAP_TARG.{{ ns.changed_at }} > DBT_INTERNAL_WRAP_SRC.{{ ns.changed_at }}
+                and DBT_INTERNAL_WRAP_TARG.{{ ns.changed_at }} >= DBT_INTERNAL_WRAP_SRC.{{ ns.changed_at }}
         )
     {% elif ns.filter_mode == "scd_key" %}
         not exists (
@@ -246,6 +263,9 @@
                 {% if not loop.first %} and {% endif %} decode(DBT_INTERNAL_WRAP_SRC.{{ col }}, DBT_INTERNAL_WRAP_TARG.{{ col }}, 1, 0) = 1
             {% endfor %}
         )
+    {% endif %}
+    {% if not ns.scd_hash_columns %}
+        and rn_stable_sort = 1
     {% endif %}
 {% endmacro %}
 

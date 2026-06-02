@@ -1,4 +1,4 @@
-name: dbt_dvh_macros_integration_tests
+name: dbt_dvh_macros
 version: 1.0.0
 config-version: 2
 profile: integration_tests
@@ -10,6 +10,10 @@ quoting:
 
 flags:
   send_anonymous_usage_stats: false
+
+dispatch:
+  - macro_namespace: dbt_dvh_macros
+    search_order: [dbt_dvh_macros]
 
 macro-paths:
   - "macros"

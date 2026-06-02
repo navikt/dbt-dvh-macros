@@ -20,6 +20,7 @@ models:
       scd_type: 2
       filter_mode: "{{ env_var('FILTER_MODE') }}"
       scd_key: kode
+      scd_hash: navn
 
   - name: dim_scd_spec
     description: SCD with all scd settings specified

@@ -45,6 +45,9 @@ def write_csv(fp, cursor):
                 break
             writer.writerows(rows)
 
+#ora_alphabet = st.characters(codec="iso8859_15")
+#ora_alphabet = st.characters(codec="ascii") | st.sampled_from("æøåÆØÅ")
+
 @pytest.mark.usefixtures("oracle_connection")
 @settings(deadline=4000, print_blob=True, phases=[Phase.generate]) # stop at first failure
 @given(
@@ -52,9 +55,9 @@ def write_csv(fp, cursor):
     navn=st.lists(st.text(min_size=20, max_size=40), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
     oppdatert=st.lists(st.datetimes(min_value=datetime(2020, 1, 1), max_value=datetime.today()), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
     opprettet=st.lists(st.datetimes(min_value=datetime(1900, 1, 1), max_value=datetime(2020, 1, 1)), min_size=BATCH_SIZE, max_size=BATCH_SIZE),
-    changed_at=st.sampled_from(["scd_key", "changed_at", "changed_at_per_scd_key"]),
+    filtermode=st.sampled_from(["scd_key", "changed_at", "changed_at_per_scd_key"]),
 )
-def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, changed_at):
+def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, filtermode):
     with oracle_connection.cursor() as cur:
         #cur.execute("truncate table dbtuser.scd_raadata")
         cur.executemany(
@@ -64,23 +67,24 @@ def test_dbt_default_scd(oracle_connection, kode, navn, oppdatert, opprettet, ch
         oracle_connection.commit()
     
     with DbtEnvVarContext(
-        FILTER_MODE=changed_at,
+        FILTER_MODE=filtermode,
     ):
         try:
             run_dbt("run", "--select", "dim_scd0", "dim_scd1", "dim_scd2")
         except Exception:
-            # dump tables to csv
-            tables = ["scd_raadata", "dim_scd0", "dim_scd1", "dim_scd2"]
-            folder = Path(__file__).parent.parent / "failures"
-            folder.mkdir(exist_ok=True)
-            for table in tables:
-                path = (folder / (table + ".csv"))
-                try:
-                    with oracle_connection.cursor() as cur:
+            # dump all tables in dbtuser to csv
+            with oracle_connection.cursor() as cur:
+                cur.execute("select table_name from all_tables where owner = :owner", owner="DBTUSER")
+                tables = [row[0] for row in cur.fetchall()]
+                folder = Path(__file__).parent.parent / "failures"
+                folder.mkdir(exist_ok=True)
+                for table in tables:
+                    path = (folder / (table + ".csv"))
+                    try:
                         cur.arraysize = 1000
                         cur.execute(f"select * from dbtuser.{table}")
                         write_csv(path, cur)
-                except Exception:
-                    # may occur if table not created?
-                    pass
+                    except Exception:
+                        # may occur if table not created?
+                        pass
             raise
