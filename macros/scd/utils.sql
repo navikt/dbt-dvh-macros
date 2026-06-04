@@ -544,16 +544,12 @@
 
 
 {%- macro SCD__sha256_hash(columns, alias) -%}
-{%- set alias = alias ~ "." if alias else alias -%}
+    {%- set prefix = alias ~ "." if alias else "" -%}
     rawtohex(standard_hash(
     {%- for column in columns -%}
-        {%- if loop.first -%}
-            {{alias}}{{ column }}
-        {%- else -%}
-            || '¿' || {{alias}}.{{ column }}
-        {%- endif -%}
+        {%- if not loop.first %} || '¿' || {% endif -%} {{ prefix }}{{ column }}
     {%- endfor -%}
-            , 'SHA256'))
+    , 'SHA256'))
 {%- endmacro -%}
 
 
