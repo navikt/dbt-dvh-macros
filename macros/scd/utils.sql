@@ -242,7 +242,7 @@
                 max(DBT_INTERNAL_WRAP_TARG.{{ ns.changed_at }})
             from
                 {{ ns.target_relation }} DBT_INTERNAL_WRAP_TARG
-        )
+        ) or (select count(*) from {{ ns.target_relation }}) = 0
     {% elif ns.filter_mode == "changed_at_per_scd_key" %}
         not exists (
             select
