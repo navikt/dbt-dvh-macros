@@ -155,6 +155,13 @@
         | reject("in", ns.scd_key_columns + [ns.primary_key, ns.created_at, ns.loaded_at])
         | list 
     %}
+    {#  A generated updated_at is by definition absent from the model select, so the list above
+        never contains it. SCD-1 must still refresh it whenever it overwrites a row,
+        otherwise the row keeps the timestamp of the run that first inserted it. #}
+    {% if ns.updated_at not in ns.data_columns %}
+        {% do ns.data_columns.append(ns.updated_at) %}
+    {% endif %}
+
     {% set ns.generate_primary_key = ns.primary_key not in source_columns_names %}
     {% set ns.generate_updated_at = ns.updated_at not in source_columns_names %}
     {% set ns.generate_loaded_at = ns.loaded_at not in source_columns_names %}
@@ -221,7 +228,7 @@
                         {% if not loop.first %} , {% endif %} {{ col }}
                     {% endfor %}
                     order by 1
-                ) as rn_stable_sort
+                ) as rn_dedup_tied_changed_at
             {% endif %}
         from (
             {{ sql }}
@@ -265,7 +272,7 @@
         )
     {% endif %}
     {% if not ns.scd_hash_columns %}
-        and rn_stable_sort = 1
+        and rn_dedup_tied_changed_at = 1
     {% endif %}
 {% endmacro %}
 

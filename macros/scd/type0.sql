@@ -43,7 +43,7 @@ using (
 on (
 {% for col in ns.scd_key_columns %}
     {% if not loop.first %} and {% endif %}
-    DBT_INTERNAL_SCD0_TARGET.{{ col }} = DBT_INTERNAL_SCD0_SOURCE.{{ col }}
+    decode(DBT_INTERNAL_SCD0_TARGET.{{ col }}, DBT_INTERNAL_SCD0_SOURCE.{{ col }}, 1, 0) = 1
 {% endfor %}
 )
 
