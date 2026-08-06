@@ -2,4 +2,4 @@ pytest
 pytest-order
 hypothesis
 testcontainers
-dbt-oracle
+dbt-oracle>=1.11.1
