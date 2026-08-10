@@ -55,7 +55,7 @@ graph TD
         FM -->|scd_key| F3[key does not\nexist in target]
         FM -->|ignore - full refresh| F4[1=1]
         F1 & F2 & F3 & F4 --> DEDUP{scd_hash\nspecified?}
-        DEDUP -->|no| RN[rn_stable_sort = 1\ndedup on scd_key + changed_at]
+        DEDUP -->|no| RN[rn_dedup_tied_changed_at = 1\ndedup on scd_key + changed_at]
         DEDUP -->|yes| PASS[pass through\nduplicates handled\ndownstream by IS_REPETITION]
     end
 

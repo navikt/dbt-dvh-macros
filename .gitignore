@@ -7,3 +7,7 @@ adapter default incremental.sql
 .hypothesis
 */dbt/target
 failures
+dbt-oracle-main
+dbt-core-main
+.venv
+.DS_Store

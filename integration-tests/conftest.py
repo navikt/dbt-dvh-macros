@@ -49,9 +49,12 @@ def oracle_connection():
     oracle.with_env("APP_USER", config.app_user)
     oracle.with_env("APP_USER_PASSWORD", config.app_pass)
 
-    # do not bind to 0.0.0.0 to avoid exposing the database to all interfaces
-    oracle.with_bind_ports(1521, (config.host, config.port)) #type: ignore
-
+    ## do not bind to 0.0.0.0 to avoid exposing the database to all interfaces
+    #oracle.with_bind_ports(1521, (config.host, config.port)) #type: ignore
+    # do not bind to 0.0.0.0 to avoid exposing the database to all interfaces.
+    # with_bind_ports() only accepts a host port, so the mapping is set directly;
+    # the docker API accepts an (interface, port) tuple as the host side.
+    oracle.ports = {f"{oracle.port}/tcp": (config.host, config.port)} # type: ignore[dict-item]
     # fixed name for reuse and error messages should a container be running from before
     oracle.with_name("testcontainers-oracle-db")
 
