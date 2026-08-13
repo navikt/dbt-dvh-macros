@@ -31,16 +31,22 @@
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "primary_key property must be string") %}
     {% endif %}
 
+    {#  The list-valued column settings are lowercased like the scalar ones below, but only once the type
+        check has passed: the default is not a list, so mapping over it unconditionally would raise. #}
     {% set tmp = config.get("scd_key", none) %}
     {% set ns.scd_key_columns = [tmp] if tmp is string else tmp %}
     {% if not dbt_dvh_macros.SCD__is_list(ns.scd_key_columns) %}
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_key property missing or must be string or list of strings") %}
+    {% else %}
+        {% set ns.scd_key_columns = ns.scd_key_columns | map("lower") | list %}
     {% endif %}
 
     {% set tmp = config.get("scd_hash", []) %}
     {% set ns.scd_hash_columns = [tmp] if tmp is string else tmp %}
     {% if not dbt_dvh_macros.SCD__is_list(ns.scd_hash_columns) %}
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_hash property must be string or list of strings") %}
+    {% else %}
+        {% set ns.scd_hash_columns = ns.scd_hash_columns | map("lower") | list %}
     {% endif %}
 
     {% set ns.created_at = config.get("created_at", "opprettet_tid_kilde").lower() %}
