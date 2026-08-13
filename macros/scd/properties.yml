@@ -70,3 +70,9 @@ macros:
           - expand: expand fixed-size target columns to avoid truncation of incoming data
           - morph: change the datatype of target columns to match incoming data (may cause errors if no implicit conversion exists)
           - remove: deletes target columns no longer present in the model
+            WARNING: this is destructive and irreversible. The column is dropped from the target table,
+            so all historical values in it are lost, including for closed SCD-2 rows. Unlike a full
+            refresh no backup copy is taken on this path, and the data can not be rebuilt from the
+            source, since the source no longer has the column. A column that disappears from the model
+            select by accident is enough to trigger it. Consider leaving "remove" out of the list and
+            dropping columns by hand when you actually mean to.
