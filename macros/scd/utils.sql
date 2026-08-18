@@ -199,6 +199,42 @@
 {% endmacro %}
 
 
+{% macro SCD__validate_existing_relation_against_config(ns, relation) %}
+{# --------------------------------------------------------------------
+    input:
+        ns: scd namespace settings
+        relation: the already existing relation the target is built on
+    returns:
+        nothing
+    description:
+        Checks that an already existing relation can carry scd history under the current config,
+        by demanding every column the materialization depends on is present.
+        The generated columns cannot be added afterwards, and the ones expected from the model
+        select would be added as all-null by the schema change handling, silently corrupting
+        history, so both are demanded up front.
+        errors are gathered in ns.errors dict
+#}
+
+    {% set existing_column_names = adapter.get_columns_in_relation(relation)
+        | map(attribute="name") | map("lower") | list
+    %}
+    {% set required_column_names = (
+            [
+                ns.primary_key, ns.valid_from, ns.valid_to, ns.valid_flag,
+                ns.created_at, ns.changed_at, ns.updated_at, ns.loaded_at
+            ]
+            + ns.scd_key_columns
+            + ns.scd_hash_columns
+        ) | unique | list
+    %}
+
+    {% for col in required_column_names | reject("in", existing_column_names) %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "target", col ~ " missing from existing relation") %}
+    {% endfor %}
+
+{% endmacro %}
+
+
 {% macro SCD__get_scd_model_source_insert_sql(ns, ignore_filter, sql) %}
 {# --------------------------------------------------------------------
     # This used to be SCD__wrap_scd_model_select_with_filter
