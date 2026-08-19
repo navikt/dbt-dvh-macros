@@ -35,7 +35,7 @@
         check has passed: the default is not a list, so mapping over it unconditionally would raise. #}
     {% set tmp = config.get("scd_key", none) %}
     {% set ns.scd_key_columns = [tmp] if tmp is string else tmp %}
-    {% if not dbt_dvh_macros.SCD__is_list(ns.scd_key_columns) %}
+    {% if not dbt_dvh_macros.SCD__is_list(ns.scd_key_columns) or not ns.scd_key_columns %}
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_key property missing or must be string or list of strings") %}
     {% else %}
         {% set ns.scd_key_columns = ns.scd_key_columns | map("lower") | list %}
