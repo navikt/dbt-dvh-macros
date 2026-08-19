@@ -248,6 +248,9 @@
             and schema changes processed
     returns:
         modified sql, dependent on config
+        NB! The model select is wrapped in inline views only. A with clause here would break any
+        model that is itself a with query, since oracle raises ORA-32034 for a with clause nested
+        inside another one.
 
 #}
 
@@ -258,7 +261,14 @@
             {% if not loop.first %} , {% endif %} {{ col }}
         {% endfor %}
     )
-    with DBT_INTERNAL_WRAP_SRC as (
+    select
+        {% for col in source_columns_names %}
+            {% if not loop.first %} , {% endif %} DBT_INTERNAL_WRAP_SRC.{{ col }}
+        {% endfor %}
+    from (
+        {#- NB! Do not reintroduce a with clause here. The model select may be a with query itself,
+            and oracle rejects a with clause nested inside another one with ORA-32034. Inline views
+            nest freely, so the model select is wrapped as one instead. -#}
         select
             {% for col in source_columns_names %}
                 {% if not loop.first %} , {% endif %} {{ col }}
@@ -274,14 +284,8 @@
             {% endif %}
         from (
             {{ sql }}
-        )
-    )
-    select
-        {% for col in source_columns_names %}
-            {% if not loop.first %} , {% endif %} DBT_INTERNAL_WRAP_SRC.{{ col }}
-        {% endfor %}
-    from
-        DBT_INTERNAL_WRAP_SRC
+        ) DBT_INTERNAL_WRAP_MODEL
+    ) DBT_INTERNAL_WRAP_SRC
     where
     {% if ignore_filter %}
         1 = 1
@@ -314,7 +318,7 @@
         )
     {% endif %}
     {% if not ns.scd_hash_columns %}
-        and rn_dedup_tied_changed_at = 1
+        and DBT_INTERNAL_WRAP_SRC.rn_dedup_tied_changed_at = 1
     {% endif %}
 {% endmacro %}
 

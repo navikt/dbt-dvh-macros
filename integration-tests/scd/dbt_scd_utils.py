@@ -189,7 +189,7 @@ def names(use_custom_names=False):
 
 def scd_env(scd_type=2, scd_key="kode1", scd_hash="", filter_mode="changed_at",
             schema_changes="", use_custom_names=False, use_existing_pk=False,
-            exclude_columns=""):
+            exclude_columns="", use_with_clause=False):
     """Every variable the model and properties.yml read, always set. env_var without a default
     raises EnvVarMissingError, and an unset SCD_KEY would render as an empty list."""
     return DbtEnvVarContext(
@@ -201,4 +201,5 @@ def scd_env(scd_type=2, scd_key="kode1", scd_hash="", filter_mode="changed_at",
         USE_CUSTOM_NAMES="true" if use_custom_names else "false",
         USE_EXISTING_PK="true" if use_existing_pk else "false",
         EXCLUDE_COLUMNS=exclude_columns,
+        USE_WITH_CLAUSE="true" if use_with_clause else "false",
     )

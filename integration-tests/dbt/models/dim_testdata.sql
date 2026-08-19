@@ -6,12 +6,15 @@
                       instead of generating one.
     EXCLUDE_COLUMNS   comma separated data columns to leave out of the select, which is how a
                       schema change is provoked between two runs.
+    USE_WITH_CLAUSE   "true" makes the model a with query, which the macro must wrap without
+                      nesting it inside a with clause of its own (ORA-32034).
 
     NB: env_var always returns a string, so compare explicitly. A bare {% if env_var(...) %} is true
         for any non-empty value, including "false". -#}
 {%- set use_custom_names = env_var('USE_CUSTOM_NAMES', 'false') == 'true' -%}
 {%- set use_existing_pk = env_var('USE_EXISTING_PK', 'false') == 'true' -%}
 {%- set exclude = env_var('EXCLUDE_COLUMNS', '').split(',') | reject('equalto', '') | list -%}
+{%- set use_with_clause = env_var('USE_WITH_CLAUSE', 'false') == 'true' -%}
 
 {%- if use_custom_names -%}
 {{ config(
@@ -35,6 +38,9 @@
     stay valid whichever naming is in play -#}
 {%- set data_columns = ['kode1', 'kode2', 'navn1', 'navn2'] | reject('in', exclude) | list -%}
 
+{%- if use_with_clause %}
+with DBT_TEST_MODEL_CTE as (
+{%- endif %}
 select
     {% if use_existing_pk %}pk as {{ primary_key }}
     , {% endif %}
@@ -45,3 +51,7 @@ select
     , tid2 as {{ created_at }}
 from
     {{ source("dbtuser", "testdata") }}
+{%- if use_with_clause %}
+)
+select * from DBT_TEST_MODEL_CTE
+{%- endif %}

@@ -94,15 +94,18 @@ def assert_is_scd_table(db, use_custom_names=False, relation=TARGET):
 @pytest.mark.parametrize("filter_mode", FILTER_MODES)
 @pytest.mark.parametrize("use_custom_names", [False, True])
 @pytest.mark.parametrize("use_existing_pk", [False, True])
-def test_first_run_creates_scd_table(db, dbt_run, scd_type, filter_mode, use_custom_names, use_existing_pk):
+@pytest.mark.parametrize("use_with_clause", [False, True])
+def test_first_run_creates_scd_table(db, dbt_run, scd_type, filter_mode, use_custom_names,
+                                     use_existing_pk, use_with_clause):
     """Every combination must build a valid scd table from an empty schema and clean up after
     itself. This is the broadest guard: the row validation in step 8 runs on each of these, so a
     combination that produces overlapping or multiply-valid rows fails here."""
     rows = make_rows(5)
     db.load(rows)
-
-    with scd_env(scd_type=scd_type, filter_mode=filter_mode,
-                 use_custom_names=use_custom_names, use_existing_pk=use_existing_pk):
+    env = dict(scd_type=scd_type, filter_mode=filter_mode,
+                 use_custom_names=use_custom_names, use_existing_pk=use_existing_pk,
+                 use_with_clause=use_with_clause)
+    with scd_env(**env):
         dbt_run("run", "--select", TARGET)
 
     assert_is_scd_table(db, use_custom_names)
@@ -150,13 +153,14 @@ def test_second_run_applies_scd_semantics(db, dbt_run, scd_type, filter_mode):
 def test_filter_mode_scd_key_only_admits_new_keys(db, dbt_run, scd_type):
     """The flip side of the case above: a key not yet in the target is still inserted."""
     db.load(make_rows(3, batch=0))
-    with scd_env(scd_type=scd_type, filter_mode="scd_key"):
+    env = dict(scd_type=scd_type, filter_mode="scd_key")
+    with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
     # one repeat of an existing key plus two genuinely new ones
     db.execute(f"truncate table {SCHEMA}.testdata")
     db.load(make_rows(1, batch=1, first_key=0) + make_rows(2, batch=1, first_key=50))
-    with scd_env(scd_type=scd_type, filter_mode="scd_key"):
+    with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
     assert db.count() == 5, "new keys were not inserted, or the existing key was revisited"
@@ -315,7 +319,7 @@ def test_scd_key_absent_from_select_is_a_model_error(db, dbt_run):
     """Caught in step 3, after the temporary source relation exists, so this exercises the
     cleanup on that raise path."""
     db.load(make_rows(2))
-    with scd_env(scd_key="ikke_en_kolonne"):
+    with scd_env(scd_key="not_a_column"):
         dbt_run("run", "--select", TARGET, expect_failure=True)
 
     assert not db.exists(TARGET)
@@ -552,14 +556,15 @@ def test_property_scd_hash_agrees_with_the_merge(db, dbt_run, before, after):
 
     db.load([Row(pk="pk-0", kode1=key, kode2="x", navn1=before[0], navn2=before[1],
                  tid1=EPOCH, tid2=EPOCH - timedelta(days=365))])
-    with scd_env(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at"):
+    env = dict(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at")
+    with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
     assert db.count() == 1
 
     db.execute(f"truncate table {SCHEMA}.{SOURCE}")
     db.load([Row(pk="pk-0", kode1=key, kode2="x", navn1=after[0], navn2=after[1],
                  tid1=EPOCH + timedelta(days=1), tid2=EPOCH - timedelta(days=365))])
-    with scd_env(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at"):
+    with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
     assert db.count() == 2, (
@@ -587,13 +592,14 @@ def test_scd_hash_separator_collision_rejects_valid_data(db, dbt_run, before, af
 
     db.load([Row(pk="p", kode1="K1", kode2="x", navn1=before[0], navn2=before[1],
                  tid1=EPOCH, tid2=EPOCH - timedelta(days=365))])
-    with scd_env(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at"):
+    env = dict(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at")
+    with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
     db.execute(f"truncate table {SCHEMA}.{SOURCE}")
     db.load([Row(pk="p", kode1="K1", kode2="x", navn1=after[0], navn2=after[1],
                  tid1=EPOCH + timedelta(days=1), tid2=EPOCH - timedelta(days=365))])
-    with scd_env(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at"):
+    with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
     assert db.count() == 2, (
