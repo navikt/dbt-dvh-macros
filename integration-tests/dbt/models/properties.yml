@@ -1,47 +1,14 @@
 models:
-  - name: dim_scd0
-    description: SCD using scd macro defaults
+  - name: dim_testdata
     config:
       materialized: scd
-      scd_type: 0
-      filter_mode: "{{ env_var('FILTER_MODE') }}"
-      scd_key: kode
-  - name: dim_scd1
-    description: SCD using scd macro defaults
-    config:
-      materialized: scd
-      scd_type: 1
-      filter_mode: "{{ env_var('FILTER_MODE') }}"
-      scd_key: kode
-  - name: dim_scd2
-    description: SCD using scd macro defaults
-    config:
-      materialized: scd
-      scd_type: 2
-      filter_mode: "{{ env_var('FILTER_MODE') }}"
-      scd_key: kode
-      scd_hash: navn
-
-  - name: dim_scd_spec
-    description: SCD with all scd settings specified
-    config:
-      enabled: false
-      materialized: scd
-      scd_type: 0 # todo
-      filter_mode: "{{ env_var('FILTER_MODE') }}"
+      scd_type: "{{ env_var('SCD_TYPE') | int }}"
+      scd_key: "{{ env_var('SCD_KEY', '').split(',') | reject('equalto', '') | list }}"
       scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"
-      scd_key: kode
-      primary_key: pk_test
-      changed_at: endret
-      created_at: opprettet
-      valid_from: gyldig_fra_og_med
-      valid_to: gyldig_til
-      valid_flag: gyldig_naa
-      updated_at: oppdatert
-      loaded_at: lastet
+      filter_mode: "{{ env_var('FILTER_MODE') }}"
       schema_changes_enabled: "{{ env_var('SCHEMA_CHANGES', '').split(',') | reject('equalto', '') | list }}"
 
 sources:
-  - name: "{{ env_var('DBT_SCHEMA') }}"
+  - name: dbtuser
     tables:
-      - name: scd_raadata
+      - name: testdata

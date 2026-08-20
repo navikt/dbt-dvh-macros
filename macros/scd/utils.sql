@@ -31,16 +31,22 @@
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "primary_key property must be string") %}
     {% endif %}
 
+    {#  The list-valued column settings are lowercased like the scalar ones below, but only once the type
+        check has passed: the default is not a list, so mapping over it unconditionally would raise. #}
     {% set tmp = config.get("scd_key", none) %}
     {% set ns.scd_key_columns = [tmp] if tmp is string else tmp %}
-    {% if not dbt_dvh_macros.SCD__is_list(ns.scd_key_columns) %}
+    {% if not dbt_dvh_macros.SCD__is_list(ns.scd_key_columns) or not ns.scd_key_columns %}
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_key property missing or must be string or list of strings") %}
+    {% else %}
+        {% set ns.scd_key_columns = ns.scd_key_columns | map("lower") | list %}
     {% endif %}
 
     {% set tmp = config.get("scd_hash", []) %}
     {% set ns.scd_hash_columns = [tmp] if tmp is string else tmp %}
     {% if not dbt_dvh_macros.SCD__is_list(ns.scd_hash_columns) %}
         {% do dbt_dvh_macros.SCD__add_error_msg(ns, "config", "scd_hash property must be string or list of strings") %}
+    {% else %}
+        {% set ns.scd_hash_columns = ns.scd_hash_columns | map("lower") | list %}
     {% endif %}
 
     {% set ns.created_at = config.get("created_at", "opprettet_tid_kilde").lower() %}
@@ -193,6 +199,42 @@
 {% endmacro %}
 
 
+{% macro SCD__validate_existing_relation_against_config(ns, relation) %}
+{# --------------------------------------------------------------------
+    input:
+        ns: scd namespace settings
+        relation: the already existing relation the target is built on
+    returns:
+        nothing
+    description:
+        Checks that an already existing relation can carry scd history under the current config,
+        by demanding every column the materialization depends on is present.
+        The generated columns cannot be added afterwards, and the ones expected from the model
+        select would be added as all-null by the schema change handling, silently corrupting
+        history, so both are demanded up front.
+        errors are gathered in ns.errors dict
+#}
+
+    {% set existing_column_names = adapter.get_columns_in_relation(relation)
+        | map(attribute="name") | map("lower") | list
+    %}
+    {% set required_column_names = (
+            [
+                ns.primary_key, ns.valid_from, ns.valid_to, ns.valid_flag,
+                ns.created_at, ns.changed_at, ns.updated_at, ns.loaded_at
+            ]
+            + ns.scd_key_columns
+            + ns.scd_hash_columns
+        ) | unique | list
+    %}
+
+    {% for col in required_column_names | reject("in", existing_column_names) %}
+        {% do dbt_dvh_macros.SCD__add_error_msg(ns, "target", col ~ " missing from existing relation") %}
+    {% endfor %}
+
+{% endmacro %}
+
+
 {% macro SCD__get_scd_model_source_insert_sql(ns, ignore_filter, sql) %}
 {# --------------------------------------------------------------------
     # This used to be SCD__wrap_scd_model_select_with_filter
@@ -206,6 +248,9 @@
             and schema changes processed
     returns:
         modified sql, dependent on config
+        NB! The model select is wrapped in inline views only. A with clause here would break any
+        model that is itself a with query, since oracle raises ORA-32034 for a with clause nested
+        inside another one.
 
 #}
 
@@ -216,7 +261,14 @@
             {% if not loop.first %} , {% endif %} {{ col }}
         {% endfor %}
     )
-    with DBT_INTERNAL_WRAP_SRC as (
+    select
+        {% for col in source_columns_names %}
+            {% if not loop.first %} , {% endif %} DBT_INTERNAL_WRAP_SRC.{{ col }}
+        {% endfor %}
+    from (
+        {#- NB! Do not reintroduce a with clause here. The model select may be a with query itself,
+            and oracle rejects a with clause nested inside another one with ORA-32034. Inline views
+            nest freely, so the model select is wrapped as one instead. -#}
         select
             {% for col in source_columns_names %}
                 {% if not loop.first %} , {% endif %} {{ col }}
@@ -232,14 +284,8 @@
             {% endif %}
         from (
             {{ sql }}
-        )
-    )
-    select
-        {% for col in source_columns_names %}
-            {% if not loop.first %} , {% endif %} DBT_INTERNAL_WRAP_SRC.{{ col }}
-        {% endfor %}
-    from
-        DBT_INTERNAL_WRAP_SRC
+        ) DBT_INTERNAL_WRAP_MODEL
+    ) DBT_INTERNAL_WRAP_SRC
     where
     {% if ignore_filter %}
         1 = 1
@@ -272,7 +318,7 @@
         )
     {% endif %}
     {% if not ns.scd_hash_columns %}
-        and rn_dedup_tied_changed_at = 1
+        and DBT_INTERNAL_WRAP_SRC.rn_dedup_tied_changed_at = 1
     {% endif %}
 {% endmacro %}
 

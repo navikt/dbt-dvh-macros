@@ -8,7 +8,6 @@ from random import randbytes
 from hashlib import sha256
 from typing import NamedTuple
 
-
 class ConnectionConfig(NamedTuple):
     host:str
     port:int
@@ -19,10 +18,12 @@ class ConnectionConfig(NamedTuple):
     app_pass:str
 
 APP_USER_INIT_SQL = [
-    "drop table if exists dbtuser.scd_raadata",
-    "create table dbtuser.scd_raadata "
-    "(kode varchar2(12 char), navn varchar2(40 char), "
-    "oppdatert timestamp(6), opprettet timestamp(6))"
+    "drop table if exists dbtuser.testdata",
+    "create table dbtuser.testdata ( "
+    "pk varchar2(36 char), "
+    "kode1 varchar2(12 char), kode2 varchar2(6 char), "
+    "navn1 varchar2(40 char), navn2 varchar2(20 char), "
+    "tid1 timestamp(6), tid2 timestamp(6) )"
 ]
 
 
@@ -90,4 +91,3 @@ def oracle_connection():
             del os.environ[k]
     finally:
         oracle.stop()
-
