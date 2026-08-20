@@ -6,7 +6,7 @@ DBT makroer utviklet i DVH til felles bruk.
 # packages.yml
 packages:
   - git: "https://github.com/navikt/dbt-dvh-macros.git"
-    revision: 6475118508edc78e91e0dd8ee3adf95491d52d89 # 1.0.5
+    revision: 928327c803bf693b20028238d8db37e27df61f87 # 1.0.7
 ```
 Ikke bruk main som revision ovenfor fordi DBT kloner alltid hele repoet.
 Bruk kun release branchene (x.y.z) som bare har de relevante filene i seg,
