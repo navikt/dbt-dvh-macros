@@ -11,3 +11,6 @@ packages:
 Ikke bruk main som revision ovenfor fordi DBT kloner alltid hele repoet.
 Bruk kun release branchene (x.y.z) som bare har de relevante filene i seg,
 og spesifiser commit-hash fra branchen.
+
+## Kode generert av GitHub Copilot
+Dette repoet bruker GitHub Copilot til å generere kode.
