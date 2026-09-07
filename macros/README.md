@@ -85,3 +85,5 @@ graph TD
     end
 ```
 ## `utils` (under arbeid)
+
+## `Bredt Aggregat` (under arbeid)

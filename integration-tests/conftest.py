@@ -2,7 +2,7 @@ import os
 import pytest
 from testcontainers.core import testcontainers_config
 testcontainers_config.ryuk_disabled = True
-from testcontainers.oracle import OracleDbContainer
+from testcontainers.community.oracle import OracleDbContainer
 import oracledb
 from random import randbytes
 from hashlib import sha256
