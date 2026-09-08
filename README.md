@@ -12,5 +12,11 @@ Ikke bruk main som revision ovenfor fordi DBT kloner alltid hele repoet.
 Bruk kun release branchene (x.y.z) som bare har de relevante filene i seg,
 og spesifiser commit-hash fra branchen.
 
+## Release Logg (fra 1.0.6)
+| Versjon | Endring | Commit |
+| --- | --- |
+| 1.0.7 | Støtt WITH-ledd i SCD modell | 928327c803bf693b20028238d8db37e27df61f87 |
+| 1.0.6 | Bugfix SCD-1 updated/changed_at og SCD-0 NULL i scd_key | 58ef19a4996bb0fccc9814ddb9a2de56fa81947f |
+
 ## Kode generert av GitHub Copilot
 Dette repoet bruker GitHub Copilot til å generere kode.
