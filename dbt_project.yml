@@ -1,4 +1,4 @@
 name: dbt_dvh_macros
-version: 1.0.5
+version: 1.0.7
 config-version: 2
 macro-paths: ["macros"]
