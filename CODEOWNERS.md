@@ -1,3 +1,3 @@
 * @navikt/teamoppfolging
 * @navikt/a-team
-* @navikt/teamfamilie
+* @navikt/statistikk-og-metode
