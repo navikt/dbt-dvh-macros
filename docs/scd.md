@@ -24,8 +24,8 @@ models:
       config:
         materialized: scd
         scd_type: 1
-        scd_key: kode
-        scd_hash: [navn, kildesystem]
+        scd_key: [kode, kildesystem]
+        scd_hash: navn
         filter_mode: changed_at
 ```
 ### Materialisering Flowchart
