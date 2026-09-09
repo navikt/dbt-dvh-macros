@@ -12,10 +12,11 @@ Ikke bruk main som revision ovenfor fordi DBT kloner alltid hele repoet.
 Bruk kun release branchene (x.y.z) som bare har de relevante filene i seg,
 og spesifiser commit-hash fra branchen.
 
-[Oversikt over versjoner](CHANGELOG.MD)
+[Oversikt over versjoner](CHANGELOG.md)
 
-## Dokumentasjon
-| Komponent | Eier |
+## Makroer
+Makroene er inndelt i komponenter etter bruksområde og eier.
+| Navn | Kodeansvarlig |
 | --- | --- |
 | [SCD materialisering](docs/scd.md) | teamoppfolging
 | [Bredt Aggregat](docs/bredagg.md) | teamfamilie
