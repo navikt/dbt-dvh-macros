@@ -8,61 +8,146 @@ Tests share the source table and run sequentially, so the db fixture truncates a
 than building its own objects.
 """
 import pytest
-from pathlib import Path
 from datetime import datetime, timedelta
 from hypothesis import given, settings, assume, HealthCheck, strategies as st
-from dbt.cli.main import dbtRunner, dbtRunnerResult
-from dbt_scd_utils import (
-    BACKUP,
-    SCHEMA,
-    SOURCE,
-    TARGET,
-    EPOCH,
-    SCD_TYPES,
-    FILTER_MODES,
-    Row,
-    make_rows,
-    names,
-    scd_env,
-    Db
-)
+from conftest import OracleDBHelper, DbtEnvVarContext, ORA_SCHEMA
+from datetime import datetime, timedelta
+from typing import NamedTuple
 
 
-@pytest.fixture
+SOURCE = "scd_testdata"
+TARGET = "scd_dim_testdata"
+BACKUP_TARGET = f"{TARGET}__dbt_backup"
+TEMP_TARGET = f"o$pt_{TARGET}"
+
+SCD_TYPES = [0, 1, 2]
+FILTER_MODES = ["scd_key", "changed_at", "changed_at_per_scd_key"]
+
+EPOCH = datetime(2020, 1, 1)
+
+# the macro defaults from SCD__validate_config, and the overrides scd_dim_testdata.sql applies when
+# USE_CUSTOM_NAMES is true. Tests assert against whichever set is active.
+DEFAULT_NAMES = {
+    "primary_key": f"pk_{TARGET}",
+    "changed_at": "oppdatert_tid_kilde",
+    "created_at": "opprettet_tid_kilde",
+    "valid_from": "gyldig_fom_tid",
+    "valid_to": "gyldig_til_tid",
+    "valid_flag": "gyldig_flagg",
+    "updated_at": "oppdatert_dato",
+    "loaded_at": "lastet_dato",
+}
+
+CUSTOM_NAMES = {
+    "primary_key": "pk_test",
+    "changed_at": "endret",
+    "created_at": "opprettet",
+    "valid_from": "gyldig_fra_og_med",
+    "valid_to": "gyldig_til",
+    "valid_flag": "gyldig_naa",
+    "updated_at": "oppdatert",
+    "loaded_at": "lastet",
+}
+
+
+class Row(NamedTuple):
+    """One source row. tid1 feeds changed_at and tid2 feeds created_at."""
+    pk: str
+    kode1: str
+    kode2: str
+    navn1: str
+    navn2: str
+    tid1: datetime
+    tid2: datetime
+
+
+def make_rows(n, *, batch=0, first_key=0, changed_at=None):
+    """Build n rows whose scd_key columns are stable across batches but whose data columns
+    move with the batch number, so re-loading a later batch is a genuine change."""
+    changed_at = changed_at if changed_at is not None else EPOCH + timedelta(days=batch)
+    return [
+        Row(
+            pk=f"pk-{first_key + i}",
+            kode1=f"kode1-{first_key + i}",
+            kode2=f"k2-{first_key + i}",
+            navn1=f"navn1 batch{batch} nr{first_key + i}",
+            navn2=f"navn2 b{batch} n{first_key + i}",
+            tid1=changed_at,
+            tid2=EPOCH - timedelta(days=365),
+        )
+        for i in range(n)
+    ]
+
+
+def names(use_custom_names=False):
+    return CUSTOM_NAMES if use_custom_names else DEFAULT_NAMES
+
+
+def scd_env(scd_type=2, scd_key="kode1", scd_hash="", filter_mode="changed_at",
+            schema_changes="", use_custom_names=False, use_existing_pk=False,
+            exclude_columns="", use_with_clause=False):
+    """Every variable the model and properties.yml read, always set. env_var without a default
+    raises EnvVarMissingError, and an unset SCD_KEY would render as an empty list."""
+    return DbtEnvVarContext(
+        SCD_TYPE=scd_type,
+        SCD_KEY=scd_key,
+        SCD_HASH=scd_hash,
+        FILTER_MODE=filter_mode,
+        SCHEMA_CHANGES=schema_changes,
+        USE_CUSTOM_NAMES="true" if use_custom_names else "false",
+        USE_EXISTING_PK="true" if use_existing_pk else "false",
+        EXCLUDE_COLUMNS=exclude_columns,
+        USE_WITH_CLAUSE="true" if use_with_clause else "false",
+    )
+
+
+class SCD_OracleDBHelper(OracleDBHelper):
+    def load(self, rows):
+        """Append rows to the source table."""
+        with self.con.cursor() as cur:
+            cur.executemany(
+                f"insert into {ORA_SCHEMA}.{SOURCE} (pk, kode1, kode2, navn1, navn2, tid1, tid2) "
+                "values (:pk, :kode1, :kode2, :navn1, :navn2, :tid1, :tid2)",
+                [r._asdict() for r in rows],
+            )
+            self.con.commit()
+
+    def target_rows(self, name=TARGET, order_by=None):
+        sql = f"select * from {ORA_SCHEMA}.{name}"
+        if order_by:
+            sql += f" order by {order_by}"
+        return self.query(sql)
+
+    def reset(self):
+        """Return the schema to the state a first-ever dbt run would see."""
+        self.cleanup_leftovers()
+        self.drop(TARGET)
+        if self.exists(SOURCE):
+            self.truncate_table(SOURCE)
+        else:
+            self.execute(
+                f"create table {ORA_SCHEMA}.{SOURCE} ( "
+                "pk varchar2(36 char), "
+                "kode1 varchar2(12 char), kode2 varchar2(6 char), "
+                "navn1 varchar2(40 char), navn2 varchar2(20 char), "
+                "tid1 timestamp(6), tid2 timestamp(6) )"
+            )
+
+
+@pytest.fixture(scope="function")
 def db(oracle_connection):
     """Function scoped clean slate. Tests run sequentially and share one source table, so the
     reset truncates and drops rather than building per-test objects."""
-    helper = Db(oracle_connection)
+    helper = SCD_OracleDBHelper(oracle_connection)
+    # Pre-test Reset / Defensive Cleanup
     helper.reset()
     yield helper
-
-
-@pytest.fixture
-def dbt_run():
-    """Invoke dbt against the bundled project. Partial parsing is disabled because the model and
-    its properties are driven by environment variables that change between tests."""
-    dbt_folder = str(Path(__file__).parent.parent / "dbt")
-
-    def run(*args, expect_failure=False):
-        cli_args = list(args) + [
-            "--project-dir", dbt_folder,
-            "--profiles-dir", dbt_folder,
-            "--no-partial-parse",
-        ]
-        result: dbtRunnerResult = dbtRunner().invoke(cli_args)
-        if expect_failure:
-            assert not result.success, f"expected dbt to fail, it succeeded: {result.result}"
-            return result
-        assert result.success, result.result or result.exception
-        return result
-
-    return run
 
 
 def assert_clean(db):
     """Nothing transient may outlive a run: no temporary source relation, no backup."""
     assert db.temp_leftovers() == [], f"temporary source relations left behind: {db.temp_leftovers()}"
-    assert not db.exists(BACKUP), f"{BACKUP} left behind"
+    assert not db.exists(BACKUP_TARGET), f"{BACKUP_TARGET} left behind"
 
 
 def columns_of(db, relation=TARGET):
@@ -70,7 +155,7 @@ def columns_of(db, relation=TARGET):
         r["column_name"].lower()
         for r in db.query(
             "select column_name from all_tab_columns where owner = :o and table_name = :t",
-            o=SCHEMA.upper(), t=relation.upper(),
+            o=ORA_SCHEMA.upper(), t=relation.upper(),
         )
     }
 
@@ -109,7 +194,7 @@ def test_first_run_creates_scd_table(db, dbt_run, scd_type, filter_mode, use_cus
         dbt_run("run", "--select", TARGET)
 
     assert_is_scd_table(db, use_custom_names)
-    assert db.count() == len(rows)
+    assert db.count(TARGET) == len(rows)
     assert_clean(db)
 
 
@@ -127,11 +212,11 @@ def test_second_run_applies_scd_semantics(db, dbt_run, scd_type, filter_mode):
 
     with scd_env(**env):
         dbt_run("run", "--select", TARGET)
-    assert db.count() == keys
+    assert db.count(TARGET) == keys
 
     # replace rather than append, so the second run sees only the changed batch and the expected
     # row count does not depend on how filter_mode re-reads old source rows
-    db.execute(f"truncate table {SCHEMA}.testdata")
+    db.truncate_table(SOURCE)
     db.load(make_rows(keys, batch=1))
     with scd_env(**env):
         dbt_run("run", "--select", TARGET)
@@ -139,11 +224,11 @@ def test_second_run_applies_scd_semantics(db, dbt_run, scd_type, filter_mode):
     n = names()
     versions_expected = scd_type == 2 and filter_mode != "scd_key"
     expected = 2 * keys if versions_expected else keys
-    assert db.count() == expected, f"scd_type {scd_type} produced {db.count()} rows, expected {expected}"
+    assert db.count(TARGET) == expected, f"scd_type {scd_type} produced {db.count(TARGET)} rows, expected {expected}"
 
     # exactly one currently valid row per key, whatever the type
     valid = db.query(
-        f"select count(*) as n from {SCHEMA}.{TARGET} where {n['valid_flag']} = 1"
+        f"select count(*) as n from {ORA_SCHEMA}.{TARGET} where {n['valid_flag']} = 1"
     )[0]["n"]
     assert valid == keys, f"expected {keys} valid rows, found {valid}"
     assert_clean(db)
@@ -158,12 +243,12 @@ def test_filter_mode_scd_key_only_admits_new_keys(db, dbt_run, scd_type):
         dbt_run("run", "--select", TARGET)
 
     # one repeat of an existing key plus two genuinely new ones
-    db.execute(f"truncate table {SCHEMA}.testdata")
+    db.truncate_table(SOURCE)
     db.load(make_rows(1, batch=1, first_key=0) + make_rows(2, batch=1, first_key=50))
     with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
-    assert db.count() == 5, "new keys were not inserted, or the existing key was revisited"
+    assert db.count(TARGET) == 5, "new keys were not inserted, or the existing key was revisited"
     assert_clean(db)
 
 
@@ -178,7 +263,7 @@ def test_rows_tied_on_changed_at_are_deduplicated(db, dbt_run, scd_type):
     with scd_env(scd_type=scd_type):
         dbt_run("run", "--select", TARGET)
 
-    assert db.count() == 1, "tied rows were not deduplicated"
+    assert db.count(TARGET) == 1, "tied rows were not deduplicated"
     assert_clean(db)
 
 
@@ -200,12 +285,12 @@ def test_several_versions_of_one_key_in_a_single_run(db, dbt_run, scd_type):
 
     n = names()
     expected_total = 2 if scd_type == 2 else 1
-    assert db.count() == expected_total, (
-        f"scd_type {scd_type} produced {db.count()} rows, expected {expected_total}"
+    assert db.count(TARGET) == expected_total, (
+        f"scd_type {scd_type} produced {db.count(TARGET)} rows, expected {expected_total}"
     )
 
     valid = db.query(
-        f"select navn1 from {SCHEMA}.{TARGET} where {n['valid_flag']} = 1"
+        f"select navn1 from {ORA_SCHEMA}.{TARGET} where {n['valid_flag']} = 1"
     )
     assert len(valid) == 1, f"expected one valid row, found {len(valid)}"
     assert valid[0]["navn1"] == "etter", "the valid row is not the latest version"
@@ -222,16 +307,16 @@ def test_full_refresh_rebuilds_target_and_removes_backup(db, dbt_run):
     db.load(make_rows(3, batch=0))
     with scd_env():
         dbt_run("run", "--select", TARGET)
-    assert db.count() == 3
+    assert db.count(TARGET) == 3
 
     # replace the source contents entirely, so a rebuild is visible in the row count
-    db.execute(f"truncate table {SCHEMA}.testdata")
+    db.truncate_table(SOURCE)
     db.load(make_rows(2, batch=1, first_key=100))
 
     with scd_env():
         dbt_run("run", "--select", TARGET, "--full-refresh")
 
-    assert db.count() == 2, "full refresh did not rebuild the target from the source alone"
+    assert db.count(TARGET) == 2, "full refresh did not rebuild the target from the source alone"
     assert_is_scd_table(db)
     assert_clean(db)
 
@@ -245,9 +330,9 @@ def test_full_refresh_keeps_backup_when_the_run_fails(db, dbt_run):
     db.load(make_rows(3, batch=0))
     with scd_env():
         dbt_run("run", "--select", TARGET)
-    assert db.count() == 3
+    assert db.count(TARGET) == 3
 
-    db.execute(f"truncate table {SCHEMA}.testdata")
+    db.truncate_table(SOURCE)
     # two versions of one key, the later one with a null changed_at. The first version takes
     # valid_from from created_at, but the second takes it straight from changed_at, so the not
     # null column rejects it and the merge raises with the backup already in place.
@@ -259,8 +344,8 @@ def test_full_refresh_keeps_backup_when_the_run_fails(db, dbt_run):
     with scd_env():
         dbt_run("run", "--select", TARGET, "--full-refresh", expect_failure=True)
 
-    assert db.exists(BACKUP), "full refresh backup was destroyed by a failed run"
-    assert db.count(BACKUP) == 3, "backup does not hold the previous data"
+    assert db.exists(BACKUP_TARGET), "full refresh backup was destroyed by a failed run"
+    assert db.count(BACKUP_TARGET) == 3, "backup does not hold the previous data"
 
 
 # --------------------------------------------------------------------------------------------
@@ -277,16 +362,16 @@ def test_existing_view_is_migrated_to_table(db, dbt_run, kind):
     n = names()
 
     # rebuild the target as a view/mview over the same shape, so it passes column validation
-    db.execute(f"create table {SCHEMA}.scd_snapshot as select * from {SCHEMA}.{TARGET}")
+    db.execute(f"create table {ORA_SCHEMA}.scd_snapshot as select * from {ORA_SCHEMA}.{TARGET}")
     db.drop(TARGET)
-    db.execute(f"create {kind} {SCHEMA}.{TARGET} as select * from {SCHEMA}.scd_snapshot")
+    db.execute(f"create {kind} {ORA_SCHEMA}.{TARGET} as select * from {ORA_SCHEMA}.scd_snapshot")
     assert db.relation_type(TARGET) == kind.upper()
 
     with scd_env():
         dbt_run("run", "--select", TARGET)
 
     assert_is_scd_table(db)
-    assert db.count() == 3, "data was lost while migrating to a table"
+    assert db.count(TARGET) == 3, "data was lost while migrating to a table"
     assert_clean(db)
     db.drop("scd_snapshot")
 
@@ -330,17 +415,17 @@ def test_existing_relation_without_scd_columns_is_rejected(db, dbt_run):
     """A plain table sitting on the target name must be refused rather than merged into, and the
     run must leave it untouched."""
     db.execute(
-        f"create table {SCHEMA}.{TARGET} as "
+        f"create table {ORA_SCHEMA}.{TARGET} as "
         f"select 'x' as kode1, 'y' as kode2 from dual"
     )
-    before = db.count()
+    before = db.count(TARGET)
     db.load(make_rows(2))
 
     with scd_env():
         dbt_run("run", "--select", TARGET, expect_failure=True)
 
     assert db.exists(TARGET), "pre-existing table was destroyed"
-    assert db.count() == before, "pre-existing table was modified"
+    assert db.count(TARGET) == before, "pre-existing table was modified"
     assert_clean(db)
 
 
@@ -350,12 +435,12 @@ def test_renaming_a_configured_column_rejects_the_existing_target(db, dbt_run):
     db.load(make_rows(3))
     with scd_env(use_custom_names=False):
         dbt_run("run", "--select", TARGET)
-    before = db.count()
+    before = db.count(TARGET)
 
     with scd_env(use_custom_names=True):
         dbt_run("run", "--select", TARGET, expect_failure=True)
 
-    assert db.count() == before, "target was modified by a rejected run"
+    assert db.count(TARGET) == before, "target was modified by a rejected run"
     assert_clean(db)
 
 
@@ -365,14 +450,14 @@ def test_unenabled_schema_change_is_rejected(db, dbt_run):
     db.load(make_rows(3))
     with scd_env(exclude_columns="navn2"):
         dbt_run("run", "--select", TARGET)
-    before = db.count()
+    before = db.count(TARGET)
     assert "navn2" not in columns_of(db)
 
     with scd_env(exclude_columns="", schema_changes=""):
         dbt_run("run", "--select", TARGET, expect_failure=True)
 
     assert "navn2" not in columns_of(db), "column added despite append not being enabled"
-    assert db.count() == before, "target was modified by a rejected run"
+    assert db.count(TARGET) == before, "target was modified by a rejected run"
     assert_clean(db)
 
 
@@ -382,7 +467,7 @@ def test_enabled_append_adds_the_new_column(db, dbt_run):
         dbt_run("run", "--select", TARGET)
     assert "navn2" not in columns_of(db)
 
-    db.execute(f"truncate table {SCHEMA}.testdata")
+    db.truncate_table(SOURCE)
     db.load(make_rows(3, batch=1))
     with scd_env(exclude_columns="", schema_changes="append"):
         dbt_run("run", "--select", TARGET)
@@ -397,7 +482,7 @@ def test_enabled_remove_drops_the_missing_column(db, dbt_run):
         dbt_run("run", "--select", TARGET)
     assert "navn2" in columns_of(db)
 
-    db.execute(f"truncate table {SCHEMA}.testdata")
+    db.truncate_table(SOURCE)
     db.load(make_rows(3, batch=1))
     with scd_env(exclude_columns="navn2", schema_changes="remove"):
         dbt_run("run", "--select", TARGET)
@@ -459,7 +544,7 @@ def _distinct_source_keys(db, key_columns):
     applies. select distinct keeps NULL as a group of its own."""
     cols = ", ".join(key_columns)
     return db.query(
-        f"select count(*) as n from (select distinct {cols} from {SCHEMA}.{SOURCE})"
+        f"select count(*) as n from (select distinct {cols} from {ORA_SCHEMA}.{SOURCE})"
     )[0]["n"]
 
 
@@ -468,7 +553,7 @@ def _keys_with_several_valid_rows(db, key_columns):
     flag = names()["valid_flag"]
     return db.query(
         f"select count(*) as n from ("
-        f"  select {cols} from {SCHEMA}.{TARGET} where {flag} = 1"
+        f"  select {cols} from {ORA_SCHEMA}.{TARGET} where {flag} = 1"
         f"  group by {cols} having count(*) > 1)"
     )[0]["n"]
 
@@ -518,7 +603,7 @@ def test_property_scd_key_survives_arbitrary_data(db, dbt_run, rows, changed_at,
 
     expected = _distinct_source_keys(db, key_columns)
     flag = names()["valid_flag"]
-    valid = db.query(f"select count(*) as n from {SCHEMA}.{TARGET} where {flag} = 1")[0]["n"]
+    valid = db.query(f"select count(*) as n from {ORA_SCHEMA}.{TARGET} where {flag} = 1")[0]["n"]
 
     assert valid == expected, f"expected one valid row for each of {expected} key groups, found {valid}"
     assert _keys_with_several_valid_rows(db, key_columns) == 0, "a key group has several valid rows"
@@ -559,15 +644,15 @@ def test_property_scd_hash_agrees_with_the_merge(db, dbt_run, before, after):
     env = dict(scd_type=2, scd_key="kode1", scd_hash="navn1,navn2", filter_mode="changed_at")
     with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
-    assert db.count() == 1
+    assert db.count(TARGET) == 1
 
-    db.execute(f"truncate table {SCHEMA}.{SOURCE}")
+    db.truncate_table(SOURCE)
     db.load([Row(pk="pk-0", kode1=key, kode2="x", navn1=after[0], navn2=after[1],
                  tid1=EPOCH + timedelta(days=1), tid2=EPOCH - timedelta(days=365))])
     with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
-    assert db.count() == 2, (
+    assert db.count(TARGET) == 2, (
         f"changing the hash columns from {before!r} to {after!r} did not produce a new version"
     )
     assert_clean(db)
@@ -596,12 +681,12 @@ def test_scd_hash_separator_collision_rejects_valid_data(db, dbt_run, before, af
     with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
-    db.execute(f"truncate table {SCHEMA}.{SOURCE}")
+    db.truncate_table(SOURCE)
     db.load([Row(pk="p", kode1="K1", kode2="x", navn1=after[0], navn2=after[1],
                  tid1=EPOCH + timedelta(days=1), tid2=EPOCH - timedelta(days=365))])
     with scd_env(**env): # type: ignore
         dbt_run("run", "--select", TARGET)
 
-    assert db.count() == 2, (
+    assert db.count(TARGET) == 2, (
         f"changing the hash columns from {before!r} to {after!r} did not produce a new version"
     )

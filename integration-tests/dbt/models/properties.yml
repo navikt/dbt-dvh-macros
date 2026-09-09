@@ -1,14 +1,45 @@
 models:
-  - name: dim_testdata
+  - name: scd_dim_testdata
     config:
       materialized: scd
-      scd_type: "{{ env_var('SCD_TYPE') | int }}"
+      description: Test target for SCD materialization
+      scd_type: "{{ env_var('SCD_TYPE', '-1') | int }}"
       scd_key: "{{ env_var('SCD_KEY', '').split(',') | reject('equalto', '') | list }}"
       scd_hash: "{{ env_var('SCD_HASH', '').split(',') | reject('equalto', '') | list }}"
-      filter_mode: "{{ env_var('FILTER_MODE') }}"
+      filter_mode: "{{ env_var('FILTER_MODE', 'error') }}"
       schema_changes_enabled: "{{ env_var('SCHEMA_CHANGES', '').split(',') | reject('equalto', '') | list }}"
+
+  - name: bredagg_ephemeral_star_src
+    config:
+      materialized: ephemeral
+      description: Ephemeral test source for BREDAGG__ephemeral_star
+    columns:
+      - name: navn
+      - name: besk
+      - name: ikkemed
+
+  - name: bredagg_ephemeral_star_targ
+    config:
+      materialized: table
+      description: Test target for BREDAGG__ephemeral_star
+
+  - name: bredagg_sync_multisource_comments_targ
+    config:
+      materialized: table
+      description: Test target for BREDAGG__sync_multi_source_comments makro
+      post_hook: "{{ BREDAGG__sync_multi_source_comments([['dbtuser', 'bredagg_testdata'], ['dbtuser', 'bredagg_testdata2']]) }}"
+      persist_docs:
+        columns: true
+    columns:
+      - name: langbesk
+        description: "Tekst fra yaml fil, vanlig DBT"
 
 sources:
   - name: dbtuser
     tables:
-      - name: testdata
+      - name: scd_testdata
+        description: Test source for SCD materialization
+      - name: bredagg_testdata
+        description: Test source for BREDAGG__sync_multi_source_comments
+      - name: bredagg_testdata2
+        description: Test source for BREDAGG__sync_multi_source_comments

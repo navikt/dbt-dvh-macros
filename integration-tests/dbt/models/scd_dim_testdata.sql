@@ -50,7 +50,7 @@ select
     tid1 as {{ changed_at }}
     , tid2 as {{ created_at }}
 from
-    {{ source("dbtuser", "testdata") }}
+    {{ source("dbtuser", "scd_testdata") }}
 {%- if use_with_clause %}
 )
 select * from DBT_TEST_MODEL_CTE
