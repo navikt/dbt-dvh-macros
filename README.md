@@ -19,7 +19,7 @@ Makroene er inndelt i komponenter etter bruksområde og eier.
 | Navn | Kodeansvarlig |
 | --- | --- |
 | [SCD materialisering](docs/scd.md) | teamoppfolging
-| [Bredt Aggregat](docs/bredagg.md) | teamfamilie
+| [Bredt Aggregat](docs/bredagg.md) | statistikk-og-metode
 | [Utils](docs/utils.md) | a-team
 
 
