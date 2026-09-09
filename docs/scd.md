@@ -1,6 +1,4 @@
-# DVH Makroer
-Makroene er inndelt i mapper etter bruksområde.
-## `scd`
+## SCD
 Implementasjon av DBT materialiseringstype `scd` som støtter Slowly Changing Dimension Type 0, 1, og 2 inkrementelle SQL transformasjoner/modeller for dbt-oracle adapteret.
 
 Dette løses hovedsaklig ved å sortere innkommende rader, slå opp mot eksisterende tabell, og så eksekvere MERGE på Primary Key kolonne.
@@ -84,6 +82,3 @@ graph TD
         CHK1 & CHK2 & CHK3 & CHK4 & CHK5 -->|ok| DONE[Done]
     end
 ```
-## `utils` (under arbeid)
-
-## `Bredt Aggregat` (under arbeid)
